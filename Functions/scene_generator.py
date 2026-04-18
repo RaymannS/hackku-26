@@ -8,7 +8,11 @@ from enum import Enum
 
 # Import render functions
 try:
-    from .render import draw_tree, draw_cactus, draw_house, draw_label, apply_desert_terrain
+    from .render import (
+        draw_tree, draw_cactus, draw_house, draw_label,
+        apply_desert_terrain, draw_contour_lines,
+        apply_hillshade, apply_paper_texture, apply_vignette
+    )
 except ImportError:
     # For testing purposes
     def draw_tree(*args): pass
@@ -16,6 +20,10 @@ except ImportError:
     def draw_house(*args): pass
     def draw_label(*args): pass
     def apply_desert_terrain(*args): pass
+    def draw_contour_lines(*args): return args[0]
+    def apply_hillshade(*args): return args[0]
+    def apply_paper_texture(*args): return args[0]
+    def apply_vignette(*args): return args[0]
 
 class TerrainType(Enum):
     DEEP_WATER = "deep_water"
@@ -73,14 +81,14 @@ class TerrainConfig:
 
     # Colors are defined here; modify these tuples to change the gradient for each band.
     BAND_COLOR_MAP = {
-        TerrainType.DEEP_WATER: ((10, 20, 60), (15, 30, 80)),          # Very deep blue
-        TerrainType.SHALLOW_WATER: ((15, 30, 80), (30, 60, 120)),     # Deep blue to medium blue
-        TerrainType.COASTAL: ((210, 180, 140), (139, 90, 43)),         # Sandy yellow to brown
-        TerrainType.LOWLANDS: ((85, 107, 47), (107, 142, 35)),        # Olive green to yellow-green
-        TerrainType.HILLS: ((107, 142, 35), (34, 139, 34)),           # Yellow-green to forest green
-        TerrainType.HIGHLANDS: ((34, 139, 34), (25, 100, 25)),        # Forest green to dark green
-        TerrainType.MOUNTAINS: ((80, 80, 80), (120, 120, 120)),       # Gray to light gray
-        TerrainType.PEAKS: ((120, 120, 120), (240, 240, 240))         # Light gray to snow white
+        TerrainType.DEEP_WATER: ((35, 70, 140), (70, 130, 220)),          # Bright deep ocean blue
+        TerrainType.SHALLOW_WATER: ((95, 145, 215), (160, 200, 245)),     # Brighter coastal blue
+        TerrainType.COASTAL: ((240, 210, 160), (215, 160, 100)),          # Warm glowing sand
+        TerrainType.LOWLANDS: ((145, 195, 130), (115, 160, 100)),         # Brighter lowland green
+        TerrainType.HILLS: ((115, 165, 110), (90, 135, 75)),              # Lush hill green
+        TerrainType.HIGHLANDS: ((105, 135, 115), (85, 115, 95)),          # Lighter highland green
+        TerrainType.MOUNTAINS: ((120, 120, 120), (170, 170, 170)),        # Slightly darker stone gray
+        TerrainType.PEAKS: ((215, 215, 225), (255, 255, 255))             # Bright snowy peaks
     }
 
     @classmethod
@@ -91,7 +99,7 @@ class TerrainConfig:
             "shallow_water_level": 78,   # Max elevation of shallow ocean
             "coastal_level": 88,         # Max elevation of beaches/coastal plains
             "lowlands_level": 115,       # Max elevation of lowland plains
-            "hills_level": 150,          # Max elevation of rolling hills
+            "hills_level": 162,          # Max elevation of rolling hills
             "highlands_level": 175,      # Max elevation of highlands
             "mountains_level": 220,      # Max elevation of mountain slopes
             "peaks_level": 255           # Top elevation for snowy peaks
@@ -122,9 +130,17 @@ class ItemConfig:
     size_range: Optional[Tuple[int, int]] = None
 
 class SceneGenerator:
-    def __init__(self, terrain_config: Optional[TerrainConfig] = None):
+    def __init__(self, terrain_config: Optional[TerrainConfig] = None, style_enabled: bool = True):
         self.terrain_config = terrain_config or TerrainConfig.default()
+        self.style_enabled = style_enabled
         self.item_configs = self._setup_item_configs()
+
+    def set_style_enabled(self, enabled: bool):
+        self.style_enabled = enabled
+
+    def toggle_style(self) -> bool:
+        self.style_enabled = not self.style_enabled
+        return self.style_enabled
 
     def _setup_item_configs(self) -> Dict[ItemType, ItemConfig]:
         """Setup default item configurations."""
@@ -200,9 +216,27 @@ class SceneGenerator:
                 mask = (Z >= config.in_min) & (Z < config.in_max)
                 final[mask] = band_image[mask]
 
-        # Parchment overlay: change weights to make the page look more or less faded.
-        paper = np.full_like(final, [235, 220, 190])  # RGB parchment tone
-        final = cv2.addWeighted(final, 0.85, paper, 0.15, 0)
+        if self.style_enabled:
+            # Smooth transitions between elevation bands.
+            blurred = cv2.GaussianBlur(final, (5, 5), 0)
+            final = cv2.addWeighted(final, 0.94, blurred, 0.06, 0)
+
+            # Add subtle hillshade to make relief feel more three-dimensional.
+            final = apply_hillshade(final, Z)
+
+            # Parchment overlay: use a lighter tint so the terrain stays bright.
+            paper = np.full_like(final, [240, 230, 205])  # Brighter parchment tone
+            final = cv2.addWeighted(final, 0.92, paper, 0.08, 0)
+
+            # Add topographic contour lines for a map-like look.
+            final = draw_contour_lines(final, Z, interval=20, color=(70, 45, 30), thickness=1, alpha=0.14)
+
+            # Add subtle texture and vignette to improve visual richness.
+            final = apply_paper_texture(final, intensity=0.03)
+            final = apply_vignette(final, strength=0.08)
+        else:
+            paper = np.full_like(final, [235, 220, 190])
+            final = cv2.addWeighted(final, 0.92, paper, 0.08, 0)
 
         # Create masks for core terrain zones.
         levels = self.terrain_config.height_levels

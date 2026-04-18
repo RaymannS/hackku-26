@@ -9,7 +9,7 @@ import pickle
 import subprocess
 import sys
 
-VOICE_MODE = False  # Change to True for voice, False for typing
+VOICE_MODE = True  # Change to True for voice, False for typing
 
 from Functions.render import *
 from Functions.prompts import *
@@ -21,6 +21,8 @@ from Functions.character_generator import *
 # SCENE GENERATOR SETUP
 # -----------------------------
 scene_gen = SceneGenerator()
+STYLE_MODE = True
+scene_gen.set_style_enabled(STYLE_MODE)
 
 # -----------------------------
 # CHARACTER GENERATOR SETUP
@@ -158,6 +160,7 @@ print("          draw a path/road between [name] and [name]")
 print("          draw a bridge from x,y to x,y")
 print("          spawn orcs | clear orcs")
 print("          save state [filename] | load state [filename]")
+print("          style on | style off | toggle style")
 print("          redraw map")
 print("          list | reset | save [filename] | quit")
 
@@ -185,6 +188,35 @@ while True:
         named_locations.clear()
         char_gen.clear_characters()
         print("Map reset")
+    elif "toggle style" in prompt.lower() or "style toggle" in prompt.lower():
+        STYLE_MODE = scene_gen.toggle_style()
+        print(f"Terrain style {'enabled' if STYLE_MODE else 'disabled'}")
+        Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = scene_gen.generate_terrain(depth_path)
+        feature_layer = final.copy()
+        path_layer = final.copy()
+        named_locations.clear()
+        char_gen.clear_characters()
+        current_map = composite(final, path_layer, feature_layer)
+        cv2.imshow("D&D World Map", current_map)
+        cv2.waitKey(1)
+    elif prompt.lower().startswith("style "):
+        if "on" in prompt.lower():
+            STYLE_MODE = True
+        elif "off" in prompt.lower():
+            STYLE_MODE = False
+        else:
+            print("Use 'style on' or 'style off' to control the terrain look.")
+            continue
+        scene_gen.set_style_enabled(STYLE_MODE)
+        print(f"Terrain style {'enabled' if STYLE_MODE else 'disabled'}")
+        Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = scene_gen.generate_terrain(depth_path)
+        feature_layer = final.copy()
+        path_layer = final.copy()
+        named_locations.clear()
+        char_gen.clear_characters()
+        current_map = composite(final, path_layer, feature_layer)
+        cv2.imshow("D&D World Map", current_map)
+        cv2.waitKey(1)
     elif "redraw map" in prompt.lower():
         print("Redrawing map...")
         new_terrain = redraw_map(depth_path)

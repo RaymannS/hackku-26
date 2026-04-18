@@ -33,6 +33,55 @@ def apply_desert_terrain(canvas, mask, Z):
     canvas = np.clip(canvas.astype(np.int16) + noise, 0, 255).astype(np.uint8)
     return canvas
 
+
+def draw_contour_lines(canvas, Z, interval=20, color=(70, 45, 30), thickness=1, alpha=0.18):
+    contour_overlay = np.zeros_like(canvas)
+    for level in range(interval, 256, interval * 2):
+        mask = (Z >= level).astype(np.uint8) * 255
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        if contours:
+            cv2.drawContours(contour_overlay, contours, -1, color, thickness, lineType=cv2.LINE_AA)
+    for level in range(interval // 2, 256, interval * 2):
+        mask = (Z >= level).astype(np.uint8) * 255
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        if contours:
+            cv2.drawContours(contour_overlay, contours, -1, tuple(min(255, c + 30) for c in color), max(1, thickness - 1), lineType=cv2.LINE_AA)
+    cv2.addWeighted(canvas, 1.0 - alpha, contour_overlay, alpha, 0, dst=canvas)
+    return canvas
+
+
+def apply_hillshade(canvas, Z, azimuth=315, altitude=45, strength=0.05):
+    az = np.deg2rad(azimuth)
+    alt = np.deg2rad(altitude)
+    gy, gx = np.gradient(Z.astype(np.float32))
+    slope = np.arctan(np.sqrt(gx * gx + gy * gy))
+    aspect = np.arctan2(gy, -gx)
+    shaded = np.sin(alt) * np.cos(slope) + np.cos(alt) * np.sin(slope) * np.cos(az - aspect)
+    normalized = ((shaded - shaded.min()) / (shaded.ptp() + 1e-6)).astype(np.float32)
+    shade = (normalized * 255).astype(np.uint8)
+    shade = cv2.cvtColor(shade, cv2.COLOR_GRAY2BGR)
+    overlay = (1.0 - normalized[..., None] * strength) * canvas.astype(np.float32)
+    return np.clip(overlay, 0, 255).astype(np.uint8)
+
+
+def apply_paper_texture(canvas, intensity=0.06):
+    h, w = canvas.shape[:2]
+    noise = np.random.randint(-12, 12, (h, w, 1), dtype=np.int16)
+    texture = np.repeat(noise, 3, axis=2)
+    blended = canvas.astype(np.int16) + (texture * intensity).astype(np.int16)
+    return np.clip(blended, 0, 255).astype(np.uint8)
+
+
+def apply_vignette(canvas, strength=0.18):
+    h, w = canvas.shape[:2]
+    ys = np.linspace(-1, 1, h)[:, None]
+    xs = np.linspace(-1, 1, w)[None, :]
+    vignette = 1.0 - (xs**2 + ys**2)
+    vignette = np.clip(vignette, 0, 1) ** 1.2
+    alpha = 1 - (1 - vignette) * strength
+    return np.clip(canvas.astype(np.float32) * alpha[..., None], 0, 255).astype(np.uint8)
+
+
 def draw_bridge(canvas, p1, p2, color=(120, 80, 40), width=4):
     cv2.line(canvas, p1, p2, color, width)
     dx = p2[0]-p1[0]; dy = p2[1]-p1[1]
