@@ -13,34 +13,43 @@ VOICE_MODE = False  # Change to True for voice, False for typing
 from Functions.render import *
 from Functions.prompts import *
 from Functions.location_determ import *
+from Functions.scene_generator import *
 
 # Import orc_list to manage it globally
 from Functions.prompts import orc_list
 
 # -----------------------------
-# HEIGHT LEVELS
+# SCENE GENERATOR SETUP
 # -----------------------------
-sea_level = 90
-mountain_level = 180
-snow_level = 240
+scene_gen = SceneGenerator()
 
-# -----------------------------
-# BAND CONFIGS
-# -----------------------------
+# Get configuration from scene generator
+terrain_config = scene_gen.terrain_config
+sea_level = terrain_config.height_levels["sea_level"]
+mountain_level = terrain_config.height_levels["mountain_level"]
+snow_level = terrain_config.height_levels["snow_level"]
+
+# Create band configs for backward compatibility
 water_cfg = {
-    "in_min": 0, "in_max": sea_level,
-    "out_min": 0, "out_max": 170,
-    "colormap": cv2.COLORMAP_PARULA
+    "in_min": terrain_config.band_configs[TerrainType.WATER].in_min,
+    "in_max": terrain_config.band_configs[TerrainType.WATER].in_max,
+    "out_min": terrain_config.band_configs[TerrainType.WATER].out_min,
+    "out_max": terrain_config.band_configs[TerrainType.WATER].out_max,
+    "colormap": terrain_config.band_configs[TerrainType.WATER].colormap
 }
 land_cfg = {
-    "in_min": sea_level, "in_max": mountain_level,
-    "out_min": 60, "out_max": 120,
-    "colormap": cv2.COLORMAP_DEEPGREEN
+    "in_min": terrain_config.band_configs[TerrainType.LAND].in_min,
+    "in_max": terrain_config.band_configs[TerrainType.LAND].in_max,
+    "out_min": terrain_config.band_configs[TerrainType.LAND].out_min,
+    "out_max": terrain_config.band_configs[TerrainType.LAND].out_max,
+    "colormap": terrain_config.band_configs[TerrainType.LAND].colormap
 }
 mount_cfg = {
-    "in_min": mountain_level, "in_max": 255,
-    "out_min": 25, "out_max": 85,
-    "colormap": cv2.COLORMAP_BONE
+    "in_min": terrain_config.band_configs[TerrainType.MOUNTAIN].in_min,
+    "in_max": terrain_config.band_configs[TerrainType.MOUNTAIN].in_max,
+    "out_min": terrain_config.band_configs[TerrainType.MOUNTAIN].out_min,
+    "out_max": terrain_config.band_configs[TerrainType.MOUNTAIN].out_max,
+    "colormap": terrain_config.band_configs[TerrainType.MOUNTAIN].colormap
 }
 
 # -----------------------------
@@ -56,53 +65,8 @@ def apply_band(depth, cfg):
 # -----------------------------
 # TERRAIN GENERATION
 # -----------------------------
-def generate_base_terrain(depth_path):
-    """Generate base terrain layers from depth data."""
-    if not os.path.exists(depth_path):
-        raise FileNotFoundError(f"Depth file not found: {depth_path}")
-
-    depth = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
-    if depth is None:
-        raise ValueError(f"Failed to load depth file: {depth_path}")
-
-    Z = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
-    Z = Z.astype(np.uint8)
-    
-    # SLOPE (cliffs)
-    gy, gx = np.gradient(Z.astype(float))
-    slope = np.sqrt(gx**2 + gy**2)
-    slope = cv2.normalize(slope, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-
-    # APPLY BANDS
-    water = apply_band(Z, water_cfg)
-    land = apply_band(Z, land_cfg)
-    mountain = apply_band(Z, mount_cfg)
-
-    # MASKS
-    water_mask = Z < sea_level
-    mountain_mask = Z >= mountain_level
-    snow_mask = Z >= snow_level
-    cliffs = slope > 120
-
-    # BASE COMPOSITION
-    final = land.copy()
-    final[water_mask] = water[water_mask]
-    final[mountain_mask] = mountain[mountain_mask]
-    final[snow_mask] = [245, 245, 245]
-    final[cliffs & ~water_mask] = (final[cliffs & ~water_mask] * 0.6).astype(np.uint8)
-
-    # PARCHMENT
-    paper = np.full_like(final, [235, 220, 190])
-    final = cv2.addWeighted(final, 0.85, paper, 0.15, 0)
-
-    # OUTLINES
-    edges = cv2.Canny(Z, 40, 120)
-    final[edges > 0] = [20, 20, 20]
-
-    return Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final
-
-
-
+depth_path = "MiDaS-master/output/sand-dpt_large_384.pfm"
+Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = scene_gen.generate_terrain(depth_path)
 
 # -----------------------------
 # COMPOSITE
@@ -169,8 +133,8 @@ def redraw_map(depth_path="MiDaS-master/output/sand-dpt_large_384.pfm"):
         
         print("Image captured and depth processed successfully.")
         
-        # Regenerate terrain
-        return generate_base_terrain(depth_path)
+        # Regenerate terrain using scene generator
+        return scene_gen.generate_terrain(depth_path)
         
     except subprocess.TimeoutExpired:
         print("Timeout: Image capture took too long")
@@ -182,8 +146,8 @@ def redraw_map(depth_path="MiDaS-master/output/sand-dpt_large_384.pfm"):
 # -----------------------------
 # INITIAL TERRAIN GENERATION
 # -----------------------------
-depth_path = "output/sand-dpt_large_384.pfm"
-Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = generate_base_terrain(depth_path)
+depth_path = "MiDaS-master/output/sand-dpt_large_384.pfm"
+Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = scene_gen.generate_terrain(depth_path)
 
 # -----------------------------
 # SPEECH SETUP

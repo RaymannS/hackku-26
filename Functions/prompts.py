@@ -4,9 +4,13 @@ import random
 import re
 from .location_determ import *
 from .render import *
+from .scene_generator import SceneGenerator, ItemType
 
 orc_list = []  # persistent state, lives outside your if-block
 orc_canvas = None  # ← add this
+
+# Global scene generator instance
+scene_gen = SceneGenerator()
 
 def parse_name(prompt):
     match = re.search(r'(?:called|named)\s+(.+?)$', prompt, re.IGNORECASE)
@@ -38,52 +42,48 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_
     h, w = Z.shape
     water_mask = Z < sea_level
 
-    if ("forest" in p) and not ("path" in p or "road" in p):
-        region_mask = get_region_mask(p, h, w)
-        mask = (Z >= sea_level) & (Z < mountain_level) & region_mask
-        pts = scatter_placer(mask, n=32, min_dist=20)
-        for x, y in pts:
-            draw_tree(feature_canvas, x, y)
-        name = parse_name(prompt)
-        if name and pts:
-            cx = int(np.mean([pt[0] for pt in pts]))
-            cy = int(np.mean([pt[1] for pt in pts]))
-            draw_label(feature_canvas, cx, cy, name)
-            named_locations[name.lower()] = (cx, cy)
-            print(f"Labelled forest as '{name}'")
-        print(f"Placed {len(pts)} trees")
+    # Item generation mapping
+    item_keywords = {
+        ItemType.FOREST: ["forest"],
+        ItemType.DESERT: ["desert"],
+        ItemType.TOWN: ["town"],
+        ItemType.VILLAGE: ["village"], 
+        ItemType.CITY: ["city"]
+    }
 
-    if ("desert" in p) and not ("path" in p or "road" in p):
+    # Check for item generation commands
+    for item_type, keywords in item_keywords.items():
+        if any(keyword in p for keyword in keywords) and not ("path" in p or "road" in p):
+            region_mask = get_region_mask(p, h, w)
+            positions = scene_gen.generate_items(item_type, feature_canvas, Z, region_mask)
+            
+            name = parse_name(prompt)
+            if name and positions:
+                cx = int(np.mean([x for x, y in positions]))
+                cy = int(np.mean([y for x, y in positions]))
+                draw_label(feature_canvas, cx, cy, name)
+                named_locations[name.lower()] = (cx, cy)
+                print(f"Labelled {item_type.value} as '{name}'")
+            print(f"Generated {len(positions)} {item_type.value} features")
+            return feature_canvas, path_canvas
+
+    # Special handling for deserts (they modify terrain)
+    if "desert" in p and not ("path" in p or "road" in p):
         region_mask = get_region_mask(p, h, w)
         mask = (Z >= sea_level) & (Z < sea_level + 50) & region_mask
         feature_canvas = apply_desert_terrain(feature_canvas, mask, Z)
-        pts = scatter_placer(mask, n=35, min_dist=25)
-        for x, y in pts:
-            draw_cactus(feature_canvas, x, y)
+        # Generate cacti using the scene generator
+        positions = scene_gen.generate_items(ItemType.DESERT, feature_canvas, Z, region_mask)
+        
         name = parse_name(prompt)
-        if name and pts:
-            cx = int(np.mean([pt[0] for pt in pts]))
-            cy = int(np.mean([pt[1] for pt in pts]))
+        if name and positions:
+            cx = int(np.mean([x for x, y in positions]))
+            cy = int(np.mean([y for x, y in positions]))
             draw_label(feature_canvas, cx, cy, name)
             named_locations[name.lower()] = (cx, cy)
             print(f"Labelled desert as '{name}'")
-        print(f"Desert applied with {len(pts)} cacti")
-
-    if ("town" in p or "village" in p or "city" in p) and not ("path" in p or "road" in p):
-        region_mask = get_region_mask(p, h, w)
-        n = 10 if "city" in p else 5
-        mask = (Z >= sea_level + 5) & (Z < mountain_level - 20) & region_mask
-        pts = scatter_placer(mask, n=n, min_dist=15)
-        for x, y in pts:
-            draw_house(feature_canvas, x, y)
-        name = parse_name(prompt)
-        if name and pts:
-            cx = int(np.mean([pt[0] for pt in pts]))
-            cy = int(np.mean([pt[1] for pt in pts]))
-            draw_label(feature_canvas, cx, cy, name)
-            named_locations[name.lower()] = (cx, cy)
-            print(f"Labelled as '{name}'")
-        print(f"Placed {len(pts)} buildings")
+        print(f"Desert applied with {len(positions)} cacti")
+        return feature_canvas, path_canvas
 
     if ("path" in p or "road" in p) and ("between" in p or "from" in p):
         name_a, name_b = parse_named_path(prompt)
