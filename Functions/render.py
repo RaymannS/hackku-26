@@ -2,26 +2,42 @@ import cv2
 import numpy as np
 import random
 
-def draw_tree(canvas, x, y, size=12, color=(20, 80, 20)):
-    pts = np.array([[x, y-size], [x-size//2, y], [x+size//2, y]], np.int32)
-    cv2.fillPoly(canvas, [pts], color)
-    cv2.rectangle(canvas, (x-2, y), (x+2, y+size//3), (60, 40, 20), -1)
-    cv2.polylines(canvas, [pts], True, (10, 40, 10), 1)
+def overlay_image(canvas, img_path, x, y, size):
+    img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+    if img is None:
+        print(f"Could not load image: {img_path}")
+        return
+    img = cv2.resize(img, (size, size))
+    
+    x1, y1 = x - size//2, y - size//2
+    x2, y2 = x1 + size, y1 + size
 
-def draw_cactus(canvas, x, y, size=14, color=(40, 120, 40)):
-    cv2.rectangle(canvas, (x-2, y-size), (x+2, y+size//2), color, -1)
-    cv2.rectangle(canvas, (x-size//2, y-size//3), (x-2, y), color, -1)
-    cv2.rectangle(canvas, (x-size//2, y-size//2), (x-size//2+3, y-size//3), color, -1)
-    cv2.rectangle(canvas, (x+2, y-size//3), (x+size//2, y), color, -1)
-    cv2.rectangle(canvas, (x+size//2-3, y-size//2), (x+size//2, y-size//3), color, -1)
+    # clamp to canvas bounds
+    cx1, cy1 = max(0, x1), max(0, y1)
+    cx2, cy2 = min(canvas.shape[1], x2), min(canvas.shape[0], y2)
+    
+    # crop image to match
+    ix1, iy1 = cx1 - x1, cy1 - y1
+    ix2, iy2 = ix1 + (cx2 - cx1), iy1 + (cy2 - cy1)
 
-def draw_house(canvas, x, y, size=14):
-    cv2.rectangle(canvas, (x-size//2, y-size//2), (x+size//2, y+size//2), (180, 160, 120), -1)
-    cv2.rectangle(canvas, (x-size//2, y-size//2), (x+size//2, y+size//2), (80, 60, 40), 1)
-    pts = np.array([[x, y-size], [x-size//2-2, y-size//2], [x+size//2+2, y-size//2]], np.int32)
-    cv2.fillPoly(canvas, [pts], (30, 50, 120))
-    cv2.polylines(canvas, [pts], True, (20, 35, 90), 1)
-    cv2.rectangle(canvas, (x-3, y), (x+3, y+size//2), (80, 50, 20), -1)
+    if cx2 <= cx1 or cy2 <= cy1:
+        return
+
+    crop = img[iy1:iy2, ix1:ix2]
+    if img.shape[2] == 4:
+        alpha = crop[:, :, 3:4] / 255.0
+        canvas[cy1:cy2, cx1:cx2] = (crop[:, :, :3] * alpha + canvas[cy1:cy2, cx1:cx2] * (1 - alpha)).astype(np.uint8)
+    else:
+        canvas[cy1:cy2, cx1:cx2] = crop
+
+def draw_tree(canvas, x, y, size=80):
+    overlay_image(canvas, "Images/tree.png", x, y, size)
+
+def draw_cactus(canvas, x, y, size=80):
+    overlay_image(canvas, "Images/cactus.png", x, y, size)
+
+def draw_house(canvas, x, y, size=80):
+    overlay_image(canvas, "Images/house.png", x, y, size)
 
 def apply_desert_terrain(canvas, mask, Z):
     z_vals = Z[mask].astype(float)
@@ -107,40 +123,10 @@ def add_winding(path, strength=10):
             winding.append((nx, ny))
     return winding
 
-def draw_orc(canvas, x, y, size=12):
-    # Body
-    cv2.circle(canvas, (x, y), size // 2, (30, 90, 30), -1)
-    # Head
-    cv2.circle(canvas, (x, y - size), size // 3, (40, 110, 40), -1)
-    # Eyes
-    cv2.circle(canvas, (x - 3, y - size), 2, (0, 0, 180), -1)
-    cv2.circle(canvas, (x + 3, y - size), 2, (0, 0, 180), -1)
-    # Tusks
-    cv2.line(canvas, (x - 3, y - size + 3), (x - 5, y - size + 7), (200, 200, 200), 1)
-    cv2.line(canvas, (x + 3, y - size + 3), (x + 5, y - size + 7), (200, 200, 200), 1)
+from PIL import ImageFont, ImageDraw, Image
 
-def spawn_orcs(canvas, player_x, player_y, n=5, radius=60):
-    spawned = 0
-    attempts = 0
-    placed = []
-    while spawned < n and attempts < 200:
-        angle = random.uniform(0, 2 * np.pi)
-        dist = random.uniform(radius * 0.3, radius)
-        x = int(player_x + dist * np.cos(angle))
-        y = int(player_y + dist * np.sin(angle))
-        h, w = canvas.shape[:2]
-        if 0 <= x < w and 0 <= y < h:
-            if all(abs(x - orc["x"]) > 15 or abs(y - orc["y"]) > 15 for orc in placed):
-                draw_orc(canvas, x, y)
-                placed.append({"x": x, "y": y, "defeated": False})
-                spawned += 1
-        attempts += 1
-        
-    print(f"Spawned {spawned} orcs near ({player_x}, {player_y})")
-    return placed
-    
 def draw_label(canvas, x, y, name, size=0.5):
-    font = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
+    font = cv2.FONT_HERSHEY_SCRIPT_SIMPLEX
     thickness = 1
     (tw, th), baseline = cv2.getTextSize(name, font, size, thickness)
     tx = x - tw // 2
