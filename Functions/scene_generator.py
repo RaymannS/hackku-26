@@ -100,9 +100,9 @@ class TerrainConfig:
             "shallow_water_level": 78,   # Max elevation of shallow ocean
             "coastal_level": 88,         # Max elevation of beaches/coastal plains
             "lowlands_level": 115,       # Max elevation of lowland plains
-            "hills_level": 162,          # Max elevation of rolling hills
-            "highlands_level": 175,      # Max elevation of highlands
-            "mountains_level": 220,      # Max elevation of mountain slopes
+            "hills_level": 155,          # Max elevation of rolling hills
+            "highlands_level": 190,      # Max elevation of highlands
+            "mountains_level": 215,      # Max elevation of mountain slopes
             "peaks_level": 255           # Top elevation for snowy peaks
         }
         return cls(
@@ -156,8 +156,8 @@ class SceneGenerator:
             ),
             ItemType.DESERT: ItemConfig(
                 terrain_mask=lambda Z, sea, mountain, snow: (Z >= sea) & (Z < sea + 50),
-                count_range=(30, 45),
-                min_distance=25,
+                count_range=(10, 25),
+                min_distance=3,
                 draw_function=lambda canvas, x, y: draw_cactus(canvas, x, y),
                 cluster_radius=80
             ),

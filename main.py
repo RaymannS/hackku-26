@@ -27,7 +27,7 @@ scene_gen.set_style_enabled(STYLE_MODE)
 # -----------------------------
 # CHARACTER GENERATOR SETUP
 # -----------------------------
-char_gen = CharacterGenerator()
+#char_gen = CharacterGenerator()
 
 # -----------------------------
 # WINDOW SETUP
@@ -181,9 +181,15 @@ print("          list | reset | save [filename] | quit")
 
 while True:
     # Draw active characters on the feature layer
-    char_gen.draw_all_characters(feature_layer)
+    #char_gen.draw_all_characters(feature_layer)
+    orc_layer = np.zeros_like(final)
+    char_gen.draw_all_characters(orc_layer)
     
     current_map = composite(final, path_layer, feature_layer)
+    
+    # overlay orcs
+    orc_mask = np.any(orc_layer != 0, axis=2)
+    current_map[orc_mask] = orc_layer[orc_mask]
     
     # Shrink and center with black margins
     MARGIN = 70
