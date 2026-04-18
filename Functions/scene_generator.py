@@ -156,8 +156,8 @@ class SceneGenerator:
             ),
             ItemType.DESERT: ItemConfig(
                 terrain_mask=lambda Z, sea, mountain, snow: (Z >= sea) & (Z < sea + 50),
-                count_range=(10, 25),
-                min_distance=3,
+                count_range=(5, 15),
+                min_distance=15,
                 draw_function=lambda canvas, x, y: draw_cactus(canvas, x, y),
                 cluster_radius=80
             ),
@@ -335,9 +335,22 @@ class SceneGenerator:
 
         apply_desert_terrain(canvas, circle_mask, Z)
 
+        # Keep cactus centers inside the desert circle so icons do not spill outside the painted area.
+        safe_margin = 40
+        placement_radius = max(config.cluster_radius - safe_margin, 0)
+        if placement_radius > 0:
+            placement_mask = ((xs - cx) ** 2 + (ys - cy) ** 2 <= placement_radius ** 2) & circle_mask
+            placer_radius = placement_radius
+            if not np.any(placement_mask):
+                placement_mask = circle_mask
+                placer_radius = config.cluster_radius
+        else:
+            placement_mask = circle_mask
+            placer_radius = config.cluster_radius
+
         count = random.randint(*config.count_range)
-        positions = self._scatter_placer(circle_mask, count, config.min_distance,
-                                        config.cluster_radius, center=(cx, cy))
+        positions = self._scatter_placer(placement_mask, count, config.min_distance,
+                                        placer_radius, center=(cx, cy))
         for x, y in positions:
             config.draw_function(canvas, x, y)
 

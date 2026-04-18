@@ -138,7 +138,7 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, orc_canvas, Z, sea_leve
     if "boss" in p and not any(word in p for word in kill_words):
         player_x, player_y = get_player_location(Z)
         char_gen.spawn_characters(orc_canvas, player_x, player_y, CharacterType.BOSS, n=1, radius=50)
-        audio_manager.play_orc()
+        audio_manager.play_boss()
         
     
         
