@@ -159,12 +159,8 @@ def redraw_map(depth_path="output/sand-dpt_large_384.pfm"):
     
     try:
         # Run grab_image.py to capture new image and generate depth
-        grab_script = os.path.join("MiDaS-master", "grab_image.py")
-        if not os.path.exists(grab_script):
-            grab_script = "grab_image.py"  # Try current directory
-        
-        result = subprocess.run(["python", grab_script], 
-                              cwd=os.path.dirname(grab_script) if os.path.exists(grab_script) else ".",
+        # Since we're running from MiDaS-master directory, grab_image.py is in current dir
+        result = subprocess.run(["python", "grab_image.py"], 
                               capture_output=True, text=True, timeout=60)
         
         if result.returncode != 0:
