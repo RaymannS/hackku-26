@@ -3,6 +3,7 @@ import numpy as np
 import random
 import re
 from .capture_utils import *
+from .audio_manager import *
 from .location_determ import *
 from .render import *
 from .scene_generator import *
@@ -123,24 +124,17 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, orc_canvas, Z, sea_leve
         print(f"Drew bridge from {start} to {end}")
         
 
-<<<<<<< HEAD
     kill_words = ["defeated", "kill", "slain", "clear"]
 
     if "orc" in p and not any(word in p for word in kill_words):
         player_x, player_y = get_player_location(Z)
-        char_gen.spawn_characters(None, player_x, player_y, CharacterType.ORC, n=5, radius=200)
+        char_gen.spawn_characters(feature_canvas, player_x, player_y, CharacterType.ORC, n=5, radius=60)
+        audio_manager.play_orc()
 
     if any(word in p for word in kill_words):
-=======
-    if "orc" in p:
-        player_x, player_y = get_player_location(Z)
-        print(f"Player x: {player_x}     Player y: {player_y}")
-        char_gen.spawn_characters(feature_canvas, player_x, player_y, CharacterType.ORC, n=5, radius=60)
-        
-    if any(word in p for word in ["defeated", "kill", "slain", "clear"]):
->>>>>>> 5219fdee7c079ce6e002f9a8596767c89608331f
         print(f"Before clear: {len(char_gen.active_characters)} characters")
         char_gen.clear_characters(CharacterType.ORC)
+        audio_manager.play_normal()
         print(f"After clear: {len(char_gen.active_characters)} characters")
         
     

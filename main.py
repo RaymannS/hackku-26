@@ -16,6 +16,7 @@ from Functions.prompts import *
 from Functions.location_determ import *
 from Functions.scene_generator import *
 from Functions.character_generator import *
+from Functions.audio_manager import *
 
 # -----------------------------
 # SCENE GENERATOR SETUP
@@ -23,6 +24,8 @@ from Functions.character_generator import *
 scene_gen = SceneGenerator()
 STYLE_MODE = True
 scene_gen.set_style_enabled(STYLE_MODE)
+
+audio_manager.play_normal()
 
 # -----------------------------
 # CHARACTER GENERATOR SETUP
@@ -218,6 +221,7 @@ while True:
         path_layer = final.copy()
         named_locations.clear()
         char_gen.clear_characters()
+        audio_manager.play_normal()
         print("Map reset")
     elif "toggle style" in prompt.lower() or "style toggle" in prompt.lower():
         STYLE_MODE = scene_gen.toggle_style()
@@ -227,6 +231,7 @@ while True:
         path_layer = final.copy()
         named_locations.clear()
         char_gen.clear_characters()
+        audio_manager.play_normal()
         current_map = composite(final, path_layer, feature_layer)
         cv2.imshow("D&D World Map", current_map)
         cv2.waitKey(1)
@@ -245,6 +250,7 @@ while True:
         path_layer = final.copy()
         named_locations.clear()
         char_gen.clear_characters()
+        audio_manager.play_normal()
         current_map = composite(final, path_layer, feature_layer)
         cv2.imshow("D&D World Map", current_map)
         cv2.waitKey(1)
@@ -257,6 +263,7 @@ while True:
             path_layer = final.copy()
             named_locations.clear()
             char_gen.clear_characters()
+            audio_manager.play_normal()
             current_map = composite(final, path_layer, feature_layer)
             cv2.imshow("D&D World Map", current_map)
             cv2.waitKey(1)
@@ -289,7 +296,7 @@ while True:
         print(f"Known locations: {list(named_locations.keys())}")
     else:
         feature_layer, path_layer = parse_and_apply(
-            prompt, feature_layer, path_layer, orc_layer, Z, sea_level, mountain_level, snow_level,
+            prompt, feature_layer, path_layer, Z, sea_level, mountain_level, snow_level,
             named_locations
         )
 
