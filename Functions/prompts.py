@@ -4,13 +4,12 @@ import random
 import re
 from .location_determ import *
 from .render import *
-from .scene_generator import SceneGenerator, ItemType
+from .scene_generator import *
+from .character_generator import *
 
-orc_list = []  # persistent state, lives outside your if-block
-orc_canvas = None  # ← add this
-
-# Global scene generator instance
+# Global instances
 scene_gen = SceneGenerator()
+char_gen = CharacterGenerator()
 
 def parse_name(prompt):
     match = re.search(r'(?:called|named)\s+(.+?)$', prompt, re.IGNORECASE)
@@ -32,11 +31,6 @@ def get_player_location():
     return (0, 0)
 
 def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_level, snow_level):
-    global orc_list, orc_canvas  # persistent state, lives outside your if-block
-
-    # initialize orc_canvas once
-    if orc_canvas is None:
-        orc_canvas = np.zeros_like(feature_canvas)
         
     p = prompt.lower()
     h, w = Z.shape
@@ -111,11 +105,10 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_
 
     if "orc" in p:
         player_x, player_y = get_player_location()
-        orc_list = spawn_orcs(feature_canvas, player_x, player_y, n=5, radius=60)
+        char_gen.spawn_characters(feature_canvas, player_x, player_y, CharacterType.ORC, n=5, radius=60)
         
     if any(word in p for word in ["defeated", "kill", "slain"]):
-        orc_canvas[:] = 0  # wipe it — orcs gone, world intact
-        orc_list = []
+        char_gen.clear_characters(CharacterType.ORC)
         
     
         

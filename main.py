@@ -14,14 +14,17 @@ from Functions.render import *
 from Functions.prompts import *
 from Functions.location_determ import *
 from Functions.scene_generator import *
-
-# Import orc_list to manage it globally
-from Functions.prompts import orc_list
+from Functions.character_generator import *
 
 # -----------------------------
 # SCENE GENERATOR SETUP
 # -----------------------------
 scene_gen = SceneGenerator()
+
+# -----------------------------
+# CHARACTER GENERATOR SETUP
+# -----------------------------
+char_gen = CharacterGenerator()
 
 # Get configuration from scene generator
 terrain_config = scene_gen.terrain_config
@@ -81,13 +84,13 @@ def composite(base, path_layer, feature_layer):
 # -----------------------------
 # MAP STATE PERSISTENCE
 # -----------------------------
-def save_state(feature_layer, path_layer, named_locations, orc_list, filename="map_state.pkl"):
+def save_state(feature_layer, path_layer, named_locations, char_gen, filename="map_state.pkl"):
     """Save the current map state to a file."""
     state = {
         "feature_layer": feature_layer,
         "path_layer": path_layer,
         "named_locations": named_locations,
-        "orc_list": orc_list
+        "active_characters": char_gen.active_characters
     }
     try:
         with open(filename, 'wb') as f:
@@ -96,7 +99,7 @@ def save_state(feature_layer, path_layer, named_locations, orc_list, filename="m
     except Exception as e:
         print(f"Error saving state: {e}")
 
-def load_state(filename="map_state.pkl"):
+def load_state(char_gen, filename="map_state.pkl"):
     """Load map state from a file."""
     if not os.path.exists(filename):
         print(f"No saved state file found: {filename}")
@@ -105,9 +108,8 @@ def load_state(filename="map_state.pkl"):
     try:
         with open(filename, 'rb') as f:
             state = pickle.load(f)
-        # Update global orc_list
-        global orc_list
-        orc_list = state.get("orc_list", [])
+        # Update character generator's active characters
+        char_gen.active_characters = state.get("active_characters", [])
         print(f"Map state loaded from {filename}")
         return state
     except Exception as e:
@@ -124,7 +126,7 @@ def redraw_map(depth_path="MiDaS-master/output/sand-dpt_large_384.pfm"):
     try:
         # Run grab_image.py to capture new image and generate depth
         # Since we're running from MiDaS-master directory, grab_image.py is in current dir
-        result = subprocess.run(["python", "grab_image.py"], 
+        result = subprocess.run(["python", "MiDaS-master/grab_image.py"], 
                               capture_output=True, text=True, timeout=60)
         
         if result.returncode != 0:
@@ -195,6 +197,9 @@ print("          redraw map")
 print("          list | reset | save [filename] | quit")
 
 while True:
+    # Draw active characters on the feature layer
+    char_gen.draw_all_characters(feature_layer)
+    
     current_map = composite(final, path_layer, feature_layer)
     cv2.imshow("D&D World Map", current_map)
     cv2.waitKey(1)
@@ -213,7 +218,7 @@ while True:
         feature_layer = final.copy()
         path_layer = final.copy()
         named_locations.clear()
-        orc_list.clear()
+        char_gen.clear_characters()
         print("Map reset")
     elif "redraw map" in prompt.lower():
         print("Redrawing map...")
@@ -223,7 +228,7 @@ while True:
             feature_layer = final.copy()
             path_layer = final.copy()
             named_locations.clear()
-            orc_list.clear()
+            char_gen.clear_characters()
             print("Map redrawn successfully!")
         else:
             print("Failed to redraw map")
@@ -232,18 +237,18 @@ while True:
         filename = "map_state.pkl"
         if len(parts) > 2:
             filename = " ".join(parts[2:])
-        save_state(feature_layer, path_layer, named_locations, orc_list, filename)
+        save_state(feature_layer, path_layer, named_locations, char_gen, filename)
     elif prompt.lower().startswith("load state"):
         parts = prompt.split()
         filename = "map_state.pkl"
         if len(parts) > 2:
             filename = " ".join(parts[2:])
-        state = load_state(filename)
+        state = load_state(char_gen, filename)
         if state:
             feature_layer = state["feature_layer"]
             path_layer = state["path_layer"]
             named_locations = state["named_locations"]
-            orc_list = state.get("orc_list", [])
+            char_gen.active_characters = state.get("active_characters", [])
             print("Map state restored")
     elif prompt.lower().startswith("save "):
         filename = prompt[5:].strip() or "map.png"
