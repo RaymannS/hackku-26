@@ -41,7 +41,7 @@ mount_cfg = {
 # -----------------------------
 # TERRAIN
 # -----------------------------
-w, h = 800, 500
+w, h = 1000, 800
 x = np.linspace(-3, 3, w)
 y = np.linspace(-3, 3, h)
 X, Y = np.meshgrid(x, y)
@@ -191,7 +191,7 @@ def draw_path(canvas, points, color=(40, 60, 80), width=2):
     for i in range(len(points)-1):
         cv2.line(canvas, points[i], points[i+1], color, width, cv2.LINE_AA)
 
-def add_winding(path, strength=8):
+def add_winding(path, strength=10):
     winding = []
     for i, (x, y) in enumerate(path):
         if i == 0 or i == len(path) - 1:
