@@ -82,7 +82,7 @@ class TerrainConfig:
 
     # Colors are defined here; modify these tuples to change the gradient for each band.
     BAND_COLOR_MAP = {
-        TerrainType.DEEP_WATER: ((20, 52, 164), (0, 150, 255)),          # Bright deep ocean blue
+        TerrainType.DEEP_WATER: ((0, 150, 255), (0, 150, 255)),          # Bright deep ocean blue
         TerrainType.SHALLOW_WATER: ((0, 150, 255), (0, 255, 255)),     # Brighter coastal blue
         TerrainType.COASTAL: ((240, 210, 160), (215, 160, 100)),          # Warm glowing sand
         TerrainType.LOWLANDS: ((145, 195, 130), (115, 160, 100)),         # Brighter lowland green
