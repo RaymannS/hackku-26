@@ -30,7 +30,7 @@ def get_player_location():
     """Dummy — replace with your OpenCV implementation later."""
     return (0, 0)
 
-def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_level, snow_level):
+def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_level, snow_level, named_locations):
         
     p = prompt.lower()
     h, w = Z.shape

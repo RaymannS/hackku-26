@@ -1,13 +1,16 @@
 import cv2
 import os
+import sys
+import subprocess
 from datetime import datetime
 
 
 def capture_image_for_midas():
     # Use fixed folder to avoid timestamp overhead
     folder_name = "current_capture"
+    midas_dir = os.path.dirname(os.path.abspath(__file__))
     rel_dir = os.path.join("input", folder_name)
-    full_dir = os.path.join("MiDaS-master\input", folder_name)
+    full_dir = os.path.join(midas_dir, "input", folder_name)
     
     # Create directory if it doesn't exist (much faster than recreating each time)
     os.makedirs(full_dir, exist_ok=True)
@@ -42,6 +45,7 @@ def capture_image_for_midas():
 if __name__ == "__main__":
     input_dir = capture_image_for_midas()
     # run MiDaS using the generated folder
-    os.system(
-        f"cd MiDaS-master && python run.py --model_type dpt_large_384 --input_path {input_dir} --output_path output"
-    )
+    midas_dir = os.path.dirname(os.path.abspath(__file__))
+    run_cmd = [sys.executable, "run.py", "--model_type", "dpt_large_384",
+               "--input_path", input_dir, "--output_path", "output"]
+    subprocess.run(run_cmd, cwd=midas_dir, check=True)

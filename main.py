@@ -7,6 +7,7 @@ import speech_recognition as sr
 import os
 import pickle
 import subprocess
+import sys
 
 VOICE_MODE = False  # Change to True for voice, False for typing
 
@@ -31,12 +32,6 @@ terrain_config = scene_gen.terrain_config
 sea_level = terrain_config.height_levels["coastal_level"]  # Use coastal as sea level
 mountain_level = terrain_config.height_levels["mountains_level"]
 snow_level = terrain_config.height_levels["peaks_level"]
-
-# -----------------------------
-# TERRAIN GENERATION
-# -----------------------------
-depth_path = "MiDaS-master/output/sand-dpt_large_384.pfm"
-Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = scene_gen.generate_terrain(depth_path)
 
 # -----------------------------
 # COMPOSITE
@@ -92,16 +87,17 @@ def redraw_map(depth_path="MiDaS-master/output/sand-dpt_large_384.pfm"):
     
     try:
         # Run grab_image.py to capture new image and generate depth
-        # Since we're running from MiDaS-master directory, grab_image.py is in current dir
-        result = subprocess.run(["python", "MiDaS-master/grab_image.py"], 
-                              capture_output=True, text=True, timeout=60)
+        repo_root = os.path.dirname(os.path.abspath(__file__))
+        script_path = os.path.join(repo_root, "MiDaS-master", "grab_image.py")
+        result = subprocess.run([sys.executable, script_path], cwd=repo_root,
+                                capture_output=True, text=True, timeout=120)
         
         if result.returncode != 0:
             print(f"Error running grab_image.py: {result.stderr}")
             return None
         
         print("Image captured and depth processed successfully.")
-        
+        print(f"Loading depth file: {os.path.abspath(depth_path)}")
         # Regenerate terrain using scene generator
         return scene_gen.generate_terrain(depth_path)
         
@@ -121,6 +117,7 @@ Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = 
 # -----------------------------
 # SPEECH SETUP
 # -----------------------------
+
 recognizer = sr.Recognizer()
 mic = sr.Microphone()
 
@@ -153,6 +150,7 @@ def listen_for_command():
 # -----------------------------
 feature_layer = final.copy()
 path_layer = final.copy()
+named_locations = {}
 
 print(f"Mode: {'VOICE' if VOICE_MODE else 'TYPING'}")
 print("Commands: add a forest/desert/town/village/city in [region] called [name]")
@@ -196,6 +194,9 @@ while True:
             path_layer = final.copy()
             named_locations.clear()
             char_gen.clear_characters()
+            current_map = composite(final, path_layer, feature_layer)
+            cv2.imshow("D&D World Map", current_map)
+            cv2.waitKey(1)
             print("Map redrawn successfully!")
         else:
             print("Failed to redraw map")
@@ -225,7 +226,8 @@ while True:
         print(f"Known locations: {list(named_locations.keys())}")
     else:
         feature_layer, path_layer = parse_and_apply(
-            prompt, feature_layer, path_layer, Z, sea_level, mountain_level, snow_level
+            prompt, feature_layer, path_layer, Z, sea_level, mountain_level, snow_level,
+            named_locations
         )
 
 cv2.destroyAllWindows()
