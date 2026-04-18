@@ -85,30 +85,8 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, orc_canvas, Z, sea_leve
     # Special handling for deserts (they modify terrain)
     if "desert" in p and not ("path" in p or "road" in p):
         region_mask = get_region_mask(p, h, w)
-        
-        # get cluster center first using scatter placer directly
-        config = scene_gen.item_configs[ItemType.DESERT]
-        levels = scene_gen.terrain_config.height_levels
-        terrain_mask = config.terrain_mask(Z, levels["coastal_level"], levels["mountains_level"], levels["peaks_level"])
-        terrain_mask = terrain_mask & region_mask
-        coords = np.argwhere(terrain_mask).tolist()
-        
-        if coords:
-            h_z, w_z = Z.shape
-            interior = [(y, x) for y, x in coords
-                        if x >= config.cluster_radius and x < w_z - config.cluster_radius
-                        and y >= config.cluster_radius and y < h_z - config.cluster_radius]
-            cy, cx = random.choice(interior if interior else coords)
-            
-            # paint yellow desert circle
-            ys, xs = np.ogrid[:h_z, :w_z]
-            circle_mask = ((xs - cx)**2 + (ys - cy)**2 <= config.cluster_radius**2) & terrain_mask
-            result = apply_desert_terrain(feature_canvas, circle_mask, Z)
-            feature_canvas[:] = result[:]
-        
-        # now place cacti on top via normal generate_items
-        positions = scene_gen.generate_items(ItemType.DESERT, feature_canvas, Z, region_mask)
-        
+        positions = scene_gen.generate_desert_area(feature_canvas, Z, region_mask)
+
         name = parse_name(prompt)
         if name and positions:
             cx = int(np.mean([x for x, y in positions]))
