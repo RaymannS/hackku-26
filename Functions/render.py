@@ -2,26 +2,31 @@ import cv2
 import numpy as np
 import random
 
-def draw_tree(canvas, x, y, size=12, color=(20, 80, 20)):
-    pts = np.array([[x, y-size], [x-size//2, y], [x+size//2, y]], np.int32)
-    cv2.fillPoly(canvas, [pts], color)
-    cv2.rectangle(canvas, (x-2, y), (x+2, y+size//3), (60, 40, 20), -1)
-    cv2.polylines(canvas, [pts], True, (10, 40, 10), 1)
+def overlay_image(canvas, img_path, x, y, size):
+    img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)  # load with alpha
+    img = cv2.resize(img, (size, size))
+    
+    x1, y1 = x - size//2, y - size//2
+    x2, y2 = x1 + size, y1 + size
+    
+    # bounds check
+    if x1 < 0 or y1 < 0 or x2 > canvas.shape[1] or y2 > canvas.shape[0]:
+        return
 
-def draw_cactus(canvas, x, y, size=14, color=(40, 120, 40)):
-    cv2.rectangle(canvas, (x-2, y-size), (x+2, y+size//2), color, -1)
-    cv2.rectangle(canvas, (x-size//2, y-size//3), (x-2, y), color, -1)
-    cv2.rectangle(canvas, (x-size//2, y-size//2), (x-size//2+3, y-size//3), color, -1)
-    cv2.rectangle(canvas, (x+2, y-size//3), (x+size//2, y), color, -1)
-    cv2.rectangle(canvas, (x+size//2-3, y-size//2), (x+size//2, y-size//3), color, -1)
+    if img.shape[2] == 4:  # has alpha channel
+        alpha = img[:, :, 3:4] / 255.0
+        canvas[y1:y2, x1:x2] = (img[:, :, :3] * alpha + canvas[y1:y2, x1:x2] * (1 - alpha)).astype(np.uint8)
+    else:
+        canvas[y1:y2, x1:x2] = img
 
-def draw_house(canvas, x, y, size=14):
-    cv2.rectangle(canvas, (x-size//2, y-size//2), (x+size//2, y+size//2), (180, 160, 120), -1)
-    cv2.rectangle(canvas, (x-size//2, y-size//2), (x+size//2, y+size//2), (80, 60, 40), 1)
-    pts = np.array([[x, y-size], [x-size//2-2, y-size//2], [x+size//2+2, y-size//2]], np.int32)
-    cv2.fillPoly(canvas, [pts], (30, 50, 120))
-    cv2.polylines(canvas, [pts], True, (20, 35, 90), 1)
-    cv2.rectangle(canvas, (x-3, y), (x+3, y+size//2), (80, 50, 20), -1)
+def draw_tree(canvas, x, y, size=128):
+    overlay_image(canvas, "Images/tree.png", x, y, size)
+
+def draw_cactus(canvas, x, y, size=24):
+    overlay_image(canvas, "Images/cactus.png", x, y, size)
+
+def draw_house(canvas, x, y, size=24):
+    overlay_image(canvas, "Images/house.png", x, y, size)
 
 def apply_desert_terrain(canvas, mask, Z):
     z_vals = Z[mask].astype(float)

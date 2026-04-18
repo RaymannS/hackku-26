@@ -35,7 +35,6 @@ char_gen = CharacterGenerator()
 cv2.namedWindow("D&D World Map", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("D&D World Map", 1920, 1080)  # Adjust width and height as needed
 
-
 # Get configuration from scene generator
 terrain_config = scene_gen.terrain_config
 sea_level = terrain_config.height_levels["coastal_level"]  # Use coastal as sea level
