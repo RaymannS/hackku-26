@@ -151,6 +151,10 @@ def listen_for_wake_word():
     with mic as source:
         print("\nWaiting for wake word: 'Dungeon Master'")
 
+        recognizer.pause_threshold = 1.5
+        recognizer.non_speaking_duration = 1.0
+        recognizer.pause_threshold = 0.3
+
         while True:
             try:
                 # listen long enough for full sentence
