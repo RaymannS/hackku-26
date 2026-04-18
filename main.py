@@ -9,7 +9,7 @@ import pickle
 import subprocess
 import sys
 
-VOICE_MODE = True  # Change to True for voice, False for typing
+VOICE_MODE = False  # Change to True for voice, False for typing
 
 from Functions.render import *
 from Functions.prompts import *
@@ -28,6 +28,13 @@ scene_gen.set_style_enabled(STYLE_MODE)
 # CHARACTER GENERATOR SETUP
 # -----------------------------
 char_gen = CharacterGenerator()
+
+# -----------------------------
+# WINDOW SETUP
+# -----------------------------
+cv2.namedWindow("D&D World Map", cv2.WINDOW_NORMAL)
+cv2.resizeWindow("D&D World Map", 1920, 1080)  # Adjust width and height as needed
+
 
 # Get configuration from scene generator
 terrain_config = scene_gen.terrain_config
