@@ -18,9 +18,9 @@ def extract_sandbox_from_frame(
     pad_right=25,
     pad_top=25,
     pad_bottom=25,
-    show_mask=False,
-    show_detection=False,
-    show_crop=False
+    show_mask=True,
+    show_detection=True,
+    show_crop=True
 ):
     """
     Detect pink corner markers and crop sandbox interior.
@@ -43,9 +43,12 @@ def extract_sandbox_from_frame(
         pad_right=pad_right,
         pad_top=pad_top,
         pad_bottom=pad_bottom,
+        show_mask=show_mask,
+        show_detection=show_detection,
+        show_crop=show_crop,
     )
 
-    if show_crop:
+    if show_detection:
         if sandbox.size == 0:
             cv2.waitKey(0)
             raise RuntimeError("Crop produced empty image")
@@ -79,8 +82,11 @@ def capture_image_for_midas():
     image_path = os.path.join(full_dir, "sand.jpg")  # JPG is faster than PNG
     
     # Save with optimized settings
-    cv2.imwrite(image_path, frame)
-
+    success = cv2.imwrite(image_path, frame)
+    if not success:
+        raise RuntimeError(f"Failed to save image to {image_path}")
+    
+    print(f"Image saved to {image_path}")
     return rel_dir
 
 
