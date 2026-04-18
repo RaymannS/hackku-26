@@ -49,7 +49,7 @@ def get_player_location(Z):
     return w // 2, h // 2
 
 
-def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_level, snow_level, named_locations):
+def parse_and_apply(prompt, feature_canvas, path_canvas, orc_canvas, Z, sea_level, mountain_level, snow_level, named_locations):
         
     p = prompt.lower()
     h, w = Z.shape
@@ -123,11 +123,13 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_
         print(f"Drew bridge from {start} to {end}")
         
 
-    if "orc" in p:
-        player_x, player_y = get_player_location(0)
-        char_gen.spawn_characters(feature_canvas, player_x, player_y, CharacterType.ORC, n=5, radius=60)
-        
-    if any(word in p for word in ["defeated", "kill", "slain", "clear"]):
+    kill_words = ["defeated", "kill", "slain", "clear"]
+
+    if "orc" in p and not any(word in p for word in kill_words):
+        player_x, player_y = get_player_location(Z)
+        char_gen.spawn_characters(None, player_x, player_y, CharacterType.ORC, n=5, radius=200)
+
+    if any(word in p for word in kill_words):
         print(f"Before clear: {len(char_gen.active_characters)} characters")
         char_gen.clear_characters(CharacterType.ORC)
         print(f"After clear: {len(char_gen.active_characters)} characters")

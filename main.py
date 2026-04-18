@@ -289,7 +289,7 @@ while True:
         print(f"Known locations: {list(named_locations.keys())}")
     else:
         feature_layer, path_layer = parse_and_apply(
-            prompt, feature_layer, path_layer, Z, sea_level, mountain_level, snow_level,
+            prompt, feature_layer, path_layer, orc_layer, Z, sea_level, mountain_level, snow_level,
             named_locations
         )
 
