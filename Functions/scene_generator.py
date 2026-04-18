@@ -18,9 +18,14 @@ except ImportError:
     def apply_desert_terrain(*args): pass
 
 class TerrainType(Enum):
-    WATER = "water"
-    LAND = "land"
-    MOUNTAIN = "mountain"
+    DEEP_WATER = "deep_water"
+    SHALLOW_WATER = "shallow_water"
+    COASTAL = "coastal"
+    LOWLANDS = "lowlands"
+    HILLS = "hills"
+    HIGHLANDS = "highlands"
+    MOUNTAINS = "mountains"
+    PEAKS = "peaks"
 
 class ItemType(Enum):
     FOREST = "forest"
@@ -34,9 +39,8 @@ class ItemType(Enum):
 class BandConfig:
     in_min: int
     in_max: int
-    out_min: int
-    out_max: int
-    colormap: int
+    start_color: Tuple[int, int, int]  # RGB start color
+    end_color: Tuple[int, int, int]    # RGB end color
 
 @dataclass
 class TerrainConfig:
@@ -47,14 +51,24 @@ class TerrainConfig:
     def default(cls) -> 'TerrainConfig':
         return cls(
             height_levels={
-                "sea_level": 90,
-                "mountain_level": 180,
-                "snow_level": 240
+                "deep_water_level": 25,
+                "shallow_water_level": 50,
+                "coastal_level": 75,
+                "lowlands_level": 100,
+                "hills_level": 125,
+                "highlands_level": 150,
+                "mountains_level": 200,
+                "peaks_level": 255
             },
             band_configs={
-                TerrainType.WATER: BandConfig(0, 90, 0, 170, cv2.COLORMAP_PARULA),
-                TerrainType.LAND: BandConfig(90, 180, 60, 120, cv2.COLORMAP_DEEPGREEN),
-                TerrainType.MOUNTAIN: BandConfig(180, 255, 25, 85, cv2.COLORMAP_BONE)
+                TerrainType.DEEP_WATER: BandConfig(0, 25, (10, 20, 60), (15, 30, 80)),        # Very deep blue
+                TerrainType.SHALLOW_WATER: BandConfig(25, 50, (15, 30, 80), (30, 60, 120)),   # Deep blue to medium blue
+                TerrainType.COASTAL: BandConfig(50, 75, (30, 60, 120), (60, 100, 160)),       # Medium blue to light blue
+                TerrainType.LOWLANDS: BandConfig(75, 100, (101, 67, 33), (139, 90, 43)),      # Brown to tan
+                TerrainType.HILLS: BandConfig(100, 125, (139, 90, 43), (160, 120, 60)),       # Tan to light brown
+                TerrainType.HIGHLANDS: BandConfig(125, 150, (160, 120, 60), (34, 139, 34)),   # Light brown to green
+                TerrainType.MOUNTAINS: BandConfig(150, 200, (80, 80, 80), (120, 120, 120)),   # Gray to light gray
+                TerrainType.PEAKS: BandConfig(200, 255, (120, 120, 120), (200, 200, 200))     # Light gray to white
             }
         )
 
@@ -122,44 +136,62 @@ class SceneGenerator:
         slope = np.sqrt(gx**2 + gy**2)
         slope = cv2.normalize(slope, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
-        # Apply band colorization
-        bands = {}
-        for terrain_type, config in self.terrain_config.band_configs.items():
-            bands[terrain_type] = self._apply_band(Z, config)
-
-        # Create masks
-        levels = self.terrain_config.height_levels
-        water_mask = Z < levels["sea_level"]
-        mountain_mask = Z >= levels["mountain_level"]
-        snow_mask = Z >= levels["snow_level"]
-        cliffs = slope > 120
-
-        # Base composition
-        final = bands[TerrainType.LAND].copy()
-        final[water_mask] = bands[TerrainType.WATER][water_mask]
-        final[mountain_mask] = bands[TerrainType.MOUNTAIN][mountain_mask]
-        final[snow_mask] = [245, 245, 245]  # Snow color
-        final[cliffs & ~water_mask] = (final[cliffs & ~water_mask] * 0.6).astype(np.uint8)
+        # Apply band colorization in elevation order
+        final = np.zeros((*Z.shape, 3), dtype=np.uint8)
+        
+        # Apply each band in order from lowest to highest elevation
+        terrain_order = [
+            TerrainType.DEEP_WATER,
+            TerrainType.SHALLOW_WATER, 
+            TerrainType.COASTAL,
+            TerrainType.LOWLANDS,
+            TerrainType.HILLS,
+            TerrainType.HIGHLANDS,
+            TerrainType.MOUNTAINS,
+            TerrainType.PEAKS
+        ]
+        
+        for terrain_type in terrain_order:
+            if terrain_type in self.terrain_config.band_configs:
+                config = self.terrain_config.band_configs[terrain_type]
+                band_image = self._apply_band(Z, config)
+                # Create mask for this elevation range
+                mask = (Z >= config.in_min) & (Z < config.in_max)
+                final[mask] = band_image[mask]
 
         # Parchment overlay
         paper = np.full_like(final, [235, 220, 190])
         final = cv2.addWeighted(final, 0.85, paper, 0.15, 0)
 
-        # Edge outlines
-        edges = cv2.Canny(Z, 40, 120)
-        final[edges > 0] = [20, 20, 20]
+        # Create compatibility masks for backward compatibility
+        levels = self.terrain_config.height_levels
+        water_mask = Z < levels["coastal_level"]  # All water areas
+        mountain_mask = Z >= levels["mountains_level"]  # Mountains and peaks
+        snow_mask = Z >= levels["peaks_level"] - 10  # High peaks get snow
+        cliffs = slope > 120
 
-        return (Z, bands[TerrainType.WATER], bands[TerrainType.LAND],
-                bands[TerrainType.MOUNTAIN], water_mask, mountain_mask,
+        # Create dummy band images for compatibility (use the final image)
+        dummy_band = final.copy()
+
+        return (Z, dummy_band, dummy_band, dummy_band, water_mask, mountain_mask,
                 snow_mask, cliffs, final)
 
     def _apply_band(self, depth: np.ndarray, config: BandConfig) -> np.ndarray:
-        """Apply color band transformation."""
+        """Apply color band transformation with custom gradient."""
+        # Normalize depth values to 0-1 range
         x = np.clip(depth - config.in_min, 0, config.in_max - config.in_min)
         x = x / (config.in_max - config.in_min + 1e-6)
-        x = x * (config.out_max - config.out_min) + config.out_min
-        x = x.astype(np.uint8)
-        return cv2.applyColorMap(x, config.colormap)
+        
+        # Create RGB gradient
+        start_r, start_g, start_b = config.start_color
+        end_r, end_g, end_b = config.end_color
+        
+        r = (start_r + x * (end_r - start_r)).astype(np.uint8)
+        g = (start_g + x * (end_g - start_g)).astype(np.uint8)
+        b = (start_b + x * (end_b - start_b)).astype(np.uint8)
+        
+        # Stack into RGB image
+        return np.stack([b, g, r], axis=-1)
 
     def generate_items(self, item_type: ItemType, canvas: np.ndarray, Z: np.ndarray,
                       region_mask: Optional[np.ndarray] = None) -> List[Tuple[int, int]]:

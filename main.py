@@ -28,42 +28,9 @@ char_gen = CharacterGenerator()
 
 # Get configuration from scene generator
 terrain_config = scene_gen.terrain_config
-sea_level = terrain_config.height_levels["sea_level"]
-mountain_level = terrain_config.height_levels["mountain_level"]
-snow_level = terrain_config.height_levels["snow_level"]
-
-# Create band configs for backward compatibility
-water_cfg = {
-    "in_min": terrain_config.band_configs[TerrainType.WATER].in_min,
-    "in_max": terrain_config.band_configs[TerrainType.WATER].in_max,
-    "out_min": terrain_config.band_configs[TerrainType.WATER].out_min,
-    "out_max": terrain_config.band_configs[TerrainType.WATER].out_max,
-    "colormap": terrain_config.band_configs[TerrainType.WATER].colormap
-}
-land_cfg = {
-    "in_min": terrain_config.band_configs[TerrainType.LAND].in_min,
-    "in_max": terrain_config.band_configs[TerrainType.LAND].in_max,
-    "out_min": terrain_config.band_configs[TerrainType.LAND].out_min,
-    "out_max": terrain_config.band_configs[TerrainType.LAND].out_max,
-    "colormap": terrain_config.band_configs[TerrainType.LAND].colormap
-}
-mount_cfg = {
-    "in_min": terrain_config.band_configs[TerrainType.MOUNTAIN].in_min,
-    "in_max": terrain_config.band_configs[TerrainType.MOUNTAIN].in_max,
-    "out_min": terrain_config.band_configs[TerrainType.MOUNTAIN].out_min,
-    "out_max": terrain_config.band_configs[TerrainType.MOUNTAIN].out_max,
-    "colormap": terrain_config.band_configs[TerrainType.MOUNTAIN].colormap
-}
-
-# -----------------------------
-# BAND FUNCTION
-# -----------------------------
-def apply_band(depth, cfg):
-    x = np.clip(depth - cfg["in_min"], 0, cfg["in_max"] - cfg["in_min"])
-    x = x / (cfg["in_max"] - cfg["in_min"] + 1e-6)
-    x = x * (cfg["out_max"] - cfg["out_min"]) + cfg["out_min"]
-    x = x.astype(np.uint8)
-    return cv2.applyColorMap(x, cfg["colormap"])
+sea_level = terrain_config.height_levels["coastal_level"]  # Use coastal as sea level
+mountain_level = terrain_config.height_levels["mountains_level"]
+snow_level = terrain_config.height_levels["peaks_level"]
 
 # -----------------------------
 # TERRAIN GENERATION
