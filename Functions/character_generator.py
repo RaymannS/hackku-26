@@ -22,6 +22,7 @@ class CharacterType(Enum):
     ELF = "elf"
     HUMAN = "human"
     DWARF = "dwarf"
+    BOSS = "boss"
 
 @dataclass
 class CharacterAppearance:
@@ -58,8 +59,8 @@ class CharacterGenerator:
             body_color=(30, 90, 30),
             head_color=(40, 110, 40),
             eye_color=(0, 0, 180),
-            size=60,
-            special_features=self._draw_orc_features
+            size=90,
+            #special_features=self._draw_orc_features
         )
         orc_stats = CharacterStats(
             health=100,
@@ -75,12 +76,38 @@ class CharacterGenerator:
             draw_function=self._draw_orc
         )
         self.add_character_type(CharacterType.ORC, orc_config)
+        
+        ## Boss config
+        boss_appearance = CharacterAppearance(
+            body_color=(30, 90, 30),
+            head_color=(40, 110, 40),
+            eye_color=(0, 0, 180),
+            size=250,
+            #special_features=self._draw_orc_features
+        )
+        boss_stats = CharacterStats(
+            health=100,
+            strength=15,
+            agility=8,
+            intelligence=6
+        )
+        boss_config = CharacterConfig(
+            name="Boss",
+            appearance=boss_appearance,
+            stats=boss_stats,
+            spawn_chance=1.0,
+            draw_function=self._draw_boss
+        )
+        self.add_character_type(CharacterType.BOSS, boss_config)
 
     def add_character_type(self, char_type: CharacterType, config: CharacterConfig):
         """Add a new character type for future spawning."""
         self.character_configs[char_type] = config
 
     def _draw_orc(self, canvas, x, y, config: CharacterConfig):
+        overlay_image(canvas, "Images/orc.png", x, y, config.appearance.size * 2)
+
+    def _draw_boss(self, canvas, x, y, config: CharacterConfig):
         overlay_image(canvas, "Images/orc.png", x, y, config.appearance.size * 2)
 
     def _draw_orc_features(self, canvas, x, y, size):

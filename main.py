@@ -256,6 +256,11 @@ while True:
         cv2.waitKey(1)
     elif "redraw map" in prompt.lower():
         print("Redrawing map...")
+        # Display black screen while processing
+        black_screen = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        cv2.imshow("D&D World Map", black_screen)
+        cv2.waitKey(1)
+        
         new_terrain = redraw_map(depth_path)
         if new_terrain:
             Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = new_terrain

@@ -147,14 +147,20 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, orc_canvas, Z, sea_leve
 
     if "orc" in p and not any(word in p for word in kill_words):
         player_x, player_y = get_player_location(Z)
-        char_gen.spawn_characters(orc_canvas, player_x, player_y, CharacterType.ORC, n=4, radius=125)
+        char_gen.spawn_characters(orc_canvas, player_x, player_y, CharacterType.ORC, n=3, radius=90)
         audio_manager.play_orc()
 
     if any(word in p for word in kill_words):
         print(f"Before clear: {len(char_gen.active_characters)} characters")
         char_gen.clear_characters(CharacterType.ORC)
+        char_gen.clear_characters(CharacterType.BOSS)
         audio_manager.play_normal()
         print(f"After clear: {len(char_gen.active_characters)} characters")
+        
+    if "boss" in p and not any(word in p for word in kill_words):
+        player_x, player_y = get_player_location(Z)
+        char_gen.spawn_characters(orc_canvas, player_x, player_y, CharacterType.BOSS, n=1, radius=50)
+        audio_manager.play_orc()
         
     
         
