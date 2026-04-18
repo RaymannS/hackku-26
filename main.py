@@ -149,43 +149,54 @@ if VOICE_MODE:
 
 def listen_for_wake_word():
     with mic as source:
+        print("\nWaiting for wake word: 'Dungeon Master'")
+
         while True:
-            print("\nWaiting for wake word: 'Dungeon Master'")
             try:
-                audio = recognizer.listen(source, timeout=12, phrase_time_limit=15)
+                # listen long enough for full sentence
+                audio = recognizer.listen(
+                    source,
+                    timeout=20,
+                    phrase_time_limit=25
+                )
+
                 text = recognizer.recognize_google(audio)
                 print(f"Heard: '{text}'")
-                lowered = text.lower()
-                if "dungeon master" in lowered:
-                    parts = re.split(r"dungeon master", text, flags=re.IGNORECASE, maxsplit=1)
-                    if len(parts) > 1 and parts[1].strip():
-                        command = parts[1].strip()
-                        print(f"Wake word plus command detected: '{command}'")
-                        return command
 
-                    print("Wake word detected. Listening for command...")
-                    try:
-                        audio = recognizer.listen(source, timeout=10, phrase_time_limit=20)
-                        command = recognizer.recognize_google(audio)
-                        print(f"Heard command: '{command}'")
+                lowered = text.lower()
+
+                if "dungeon master" in lowered:
+
+                    # capture everything AFTER the wake word
+                    parts = re.split(
+                        r"dungeon master",
+                        text,
+                        flags=re.IGNORECASE,
+                        maxsplit=1
+                    )
+
+                    command = parts[1].strip() if len(parts) > 1 else ""
+
+                    if command:
+                        print(f"Command detected: '{command}'")
                         return command
-                    except sr.WaitTimeoutError:
-                        print("No command heard after wake word; please say it again.")
-                        continue
-                    except sr.UnknownValueError:
-                        print("Could not understand the command; please try again.")
+                    else:
+                        print("Wake word detected but no command followed.")
                         continue
 
                 else:
-                    print("Wake word not detected. Say 'Dungeon Master' first.")
+                    print("Wake word not detected.")
+
             except sr.WaitTimeoutError:
-                print("No speech detected while waiting for wake word")
-                return None
+                print("No speech detected")
+                continue
+
             except sr.UnknownValueError:
-                print("Could not understand audio while waiting for wake word")
-                return None
-            except sr.RequestError:
-                print("Speech service unavailable")
+                print("Could not understand audio")
+                continue
+
+            except sr.RequestError as e:
+                print(f"Speech service unavailable: {e}")
                 return None
 
 # -----------------------------
