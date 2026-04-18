@@ -305,37 +305,85 @@ class SceneGenerator:
         count = random.randint(*config.count_range)
         positions = self._scatter_placer(terrain_mask, count, config.min_distance, config.cluster_radius)
 
-
         # Draw items
         for x, y in positions:
             config.draw_function(canvas, x, y)
 
         return positions
 
-    def _scatter_placer(self, mask: np.ndarray, n: int, min_dist: int, radius: int = 80) -> List[Tuple[int, int]]:
+    def generate_desert_area(self, canvas: np.ndarray, Z: np.ndarray,
+                             region_mask: Optional[np.ndarray] = None) -> List[Tuple[int, int]]:
+        """Generate a yellow desert circle and place cacti within the same circle."""
+        config = self.item_configs[ItemType.DESERT]
+        levels = self.terrain_config.height_levels
+
+        terrain_mask = config.terrain_mask(Z,
+                                         levels["coastal_level"],
+                                         levels["mountains_level"],
+                                         levels["peaks_level"])
+        if region_mask is not None:
+            terrain_mask = terrain_mask & region_mask
+
+        center = self._choose_cluster_center(terrain_mask, config.cluster_radius)
+        if center is None:
+            return []
+
+        cx, cy = center
+        h, w = Z.shape
+        ys, xs = np.ogrid[:h, :w]
+        circle_mask = ((xs - cx) ** 2 + (ys - cy) ** 2 <= config.cluster_radius ** 2) & terrain_mask
+
+        apply_desert_terrain(canvas, circle_mask, Z)
+
+        count = random.randint(*config.count_range)
+        positions = self._scatter_placer(circle_mask, count, config.min_distance,
+                                        config.cluster_radius, center=(cx, cy))
+        for x, y in positions:
+            config.draw_function(canvas, x, y)
+
+        return positions
+
+    def _choose_cluster_center(self, mask: np.ndarray, radius: int) -> Optional[Tuple[int, int]]:
+        coords = np.argwhere(mask)
+        if coords.size == 0:
+            return None
+
+        h, w = mask.shape
+        interior = [(y, x) for y, x in coords
+                    if x >= radius and x < w - radius and y >= radius and y < h - radius]
+        if interior:
+            cy, cx = random.choice(interior)
+        else:
+            cy, cx = tuple(coords[np.random.choice(len(coords))])
+
+        return cx, cy
+
+    def _scatter_placer(self, mask: np.ndarray, n: int, min_dist: int, radius: int = 80,
+                        center: Optional[Tuple[int, int]] = None) -> List[Tuple[int, int]]:
         coords = np.argwhere(mask).tolist()
         if not coords:
             return []
 
         h, w = mask.shape
 
-        # only consider center points that are at least radius away from edges
-        interior = [(y, x) for y, x in coords 
-                    if x >= radius and x < w - radius and y >= radius and y < h - radius]
-        
-        if not interior:
-            interior = coords  # fallback if map is too small
+        if center is None:
+            interior = [(y, x) for y, x in coords
+                        if x >= radius and x < w - radius and y >= radius and y < h - radius]
+            if not interior:
+                interior = coords
+            cy, cx = random.choice(interior)
+        else:
+            cx, cy = center
 
-        cy, cx = random.choice(interior)
+        if radius is not None:
+            nearby = [(y, x) for y, x in coords if np.sqrt((x - cx) ** 2 + (y - cy) ** 2) <= radius]
+            if nearby:
+                coords = nearby
 
-        nearby = [(y, x) for y, x in coords if np.sqrt((x - cx)**2 + (y - cy)**2) <= radius]
-        if not nearby:
-            nearby = coords
-
-        random.shuffle(nearby)
+        random.shuffle(coords)
         placed = []
 
-        for y, x in nearby:
+        for y, x in coords:
             if len(placed) >= n:
                 break
             if all(abs(x - px) >= min_dist and abs(y - py) >= min_dist for px, py in placed):

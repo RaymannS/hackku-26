@@ -51,13 +51,44 @@ def extract_sandbox_from_frame(
     if len(xs) == 0:
         raise RuntimeError("No markers detected after filtering small regions")
 
-    x_min = max(0, np.min(xs) + pad_left)
-    x_max = min(frame.shape[1], np.max(xs) - pad_right)
-    y_min = max(0, np.min(ys) + pad_top)
-    y_max = min(frame.shape[0], np.max(ys) - pad_bottom)
+    raw_x_min = np.min(xs)
+    raw_x_max = np.max(xs)
+    raw_y_min = np.min(ys)
+    raw_y_max = np.max(ys)
+    
+    # Apply padding, but ensure bounds remain valid
+    x_min = max(0, raw_x_min + pad_left)
+    x_max = min(frame.shape[1], raw_x_max - pad_right)
+    y_min = max(0, raw_y_min + pad_top)
+    y_max = min(frame.shape[0], raw_y_max - pad_bottom)
 
+    # If padding creates invalid bounds, reduce padding proportionally
     if x_min >= x_max or y_min >= y_max:
-        raise RuntimeError("Invalid sandbox bounds after padding")
+        # Use 75% of original padding
+        pad_left = int(pad_left * 0.75)
+        pad_right = int(pad_right * 0.75)
+        pad_top = int(pad_top * 0.75)
+        pad_bottom = int(pad_bottom * 0.75)
+        
+        x_min = max(0, raw_x_min + pad_left)
+        x_max = min(frame.shape[1], raw_x_max - pad_right)
+        y_min = max(0, raw_y_min + pad_top)
+        y_max = min(frame.shape[0], raw_y_max - pad_bottom)
+        
+        # If still invalid, try 50% padding
+        if x_min >= x_max or y_min >= y_max:
+            pad_left = int(pad_left * 0.67)
+            pad_right = int(pad_right * 0.67)
+            pad_top = int(pad_top * 0.67)
+            pad_bottom = int(pad_bottom * 0.67)
+            
+            x_min = max(0, raw_x_min + pad_left)
+            x_max = min(frame.shape[1], raw_x_max - pad_right)
+            y_min = max(0, raw_y_min + pad_top)
+            y_max = min(frame.shape[0], raw_y_max - pad_bottom)
+            
+            if x_min >= x_max or y_min >= y_max:
+                raise RuntimeError("Invalid sandbox bounds after padding reduction")
 
     return frame[y_min:y_max, x_min:x_max]
 
