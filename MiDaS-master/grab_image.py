@@ -4,28 +4,12 @@ from datetime import datetime
 
 
 def capture_image_for_midas():
-    """
-    Captures an image from webcam and saves to:
-
-        input/image_TIMESTAMP/image.png
-
-    Assumes script is run from inside MiDaS-master directory.
-
-    Returns:
-        str: relative directory path (e.g. "input/image_20260417_1530")
-    """
-
-    # timestamp folder name
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     folder_name = f"image_{timestamp}"
 
-    # create path relative to MiDaS-master
     full_dir = os.path.join("input", folder_name)
-
-    # create directory if needed
     os.makedirs(full_dir, exist_ok=True)
 
-    # open webcam
     cap = cv2.VideoCapture(0)
 
     if not cap.isOpened():
@@ -34,12 +18,15 @@ def capture_image_for_midas():
     ret, frame = cap.read()
     cap.release()
 
-    if not ret:
+    if not ret or frame is None:
         raise RuntimeError("Failed to capture image")
 
-    # save image
     image_path = os.path.join(full_dir, "sand.png")
+
+    # save using standard PNG encoding
     cv2.imwrite(image_path, frame)
+
+    print("Saved:", image_path)
 
     return full_dir
 
