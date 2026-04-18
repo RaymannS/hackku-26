@@ -124,7 +124,8 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_
         
 
     if "orc" in p:
-        player_x, player_y = get_player_location(0)
+        player_x, player_y = get_player_location(Z)
+        print(f"Player x: {player_x}     Player y: {player_y}")
         char_gen.spawn_characters(feature_canvas, player_x, player_y, CharacterType.ORC, n=5, radius=60)
         
     if any(word in p for word in ["defeated", "kill", "slain", "clear"]):
