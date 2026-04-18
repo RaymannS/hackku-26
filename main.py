@@ -4,12 +4,18 @@ import heapq
 import random
 import re
 import speech_recognition as sr
+import os
+import pickle
+import subprocess
 
 VOICE_MODE = False  # Change to True for voice, False for typing
 
 from Functions.render import *
 from Functions.prompts import *
 from Functions.location_determ import *
+
+# Import orc_list to manage it globally
+from Functions.prompts import orc_list
 
 # -----------------------------
 # HEIGHT LEVELS
@@ -38,19 +44,6 @@ mount_cfg = {
 }
 
 # -----------------------------
-# TERRAIN
-# -----------------------------
-depth = cv2.imread("output/sand-dpt_large_384.pfm", cv2.IMREAD_UNCHANGED)
-Z = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
-Z = Z.astype(np.uint8)
-# -----------------------------
-# SLOPE (cliffs)
-# -----------------------------
-gy, gx = np.gradient(Z.astype(float))
-slope = np.sqrt(gx**2 + gy**2)
-slope = cv2.normalize(slope, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-
-# -----------------------------
 # BAND FUNCTION
 # -----------------------------
 def apply_band(depth, cfg):
@@ -61,36 +54,52 @@ def apply_band(depth, cfg):
     return cv2.applyColorMap(x, cfg["colormap"])
 
 # -----------------------------
-# APPLY BANDS
+# TERRAIN GENERATION
 # -----------------------------
-water = apply_band(Z, water_cfg)
-land = apply_band(Z, land_cfg)
-mountain = apply_band(Z, mount_cfg)
+def generate_base_terrain(depth_path):
+    """Generate base terrain layers from depth data."""
+    if not os.path.exists(depth_path):
+        raise FileNotFoundError(f"Depth file not found: {depth_path}")
 
-# -----------------------------
-# MASKS
-# -----------------------------
-water_mask = Z < sea_level
-mountain_mask = Z >= mountain_level
-snow_mask = Z >= snow_level
-cliffs = slope > 120
+    depth = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
+    if depth is None:
+        raise ValueError(f"Failed to load depth file: {depth_path}")
 
-# -----------------------------
-# BASE COMPOSITION
-# -----------------------------
-final = land.copy()
-final[water_mask] = water[water_mask]
-final[mountain_mask] = mountain[mountain_mask]
-final[snow_mask] = [245, 245, 245]
-final[cliffs & ~water_mask] = (final[cliffs & ~water_mask] * 0.6).astype(np.uint8)
+    Z = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
+    Z = Z.astype(np.uint8)
+    
+    # SLOPE (cliffs)
+    gy, gx = np.gradient(Z.astype(float))
+    slope = np.sqrt(gx**2 + gy**2)
+    slope = cv2.normalize(slope, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
-# PARCHMENT
-paper = np.full_like(final, [235, 220, 190])
-final = cv2.addWeighted(final, 0.85, paper, 0.15, 0)
+    # APPLY BANDS
+    water = apply_band(Z, water_cfg)
+    land = apply_band(Z, land_cfg)
+    mountain = apply_band(Z, mount_cfg)
 
-# OUTLINES
-edges = cv2.Canny(Z, 40, 120)
-final[edges > 0] = [20, 20, 20]
+    # MASKS
+    water_mask = Z < sea_level
+    mountain_mask = Z >= mountain_level
+    snow_mask = Z >= snow_level
+    cliffs = slope > 120
+
+    # BASE COMPOSITION
+    final = land.copy()
+    final[water_mask] = water[water_mask]
+    final[mountain_mask] = mountain[mountain_mask]
+    final[snow_mask] = [245, 245, 245]
+    final[cliffs & ~water_mask] = (final[cliffs & ~water_mask] * 0.6).astype(np.uint8)
+
+    # PARCHMENT
+    paper = np.full_like(final, [235, 220, 190])
+    final = cv2.addWeighted(final, 0.85, paper, 0.15, 0)
+
+    # OUTLINES
+    edges = cv2.Canny(Z, 40, 120)
+    final[edges > 0] = [20, 20, 20]
+
+    return Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final
 
 
 
@@ -105,7 +114,80 @@ def composite(base, path_layer, feature_layer):
     result[diff] = feature_layer[diff]
     return result
 
+# -----------------------------
+# MAP STATE PERSISTENCE
+# -----------------------------
+def save_state(feature_layer, path_layer, named_locations, orc_list, filename="map_state.pkl"):
+    """Save the current map state to a file."""
+    state = {
+        "feature_layer": feature_layer,
+        "path_layer": path_layer,
+        "named_locations": named_locations,
+        "orc_list": orc_list
+    }
+    try:
+        with open(filename, 'wb') as f:
+            pickle.dump(state, f)
+        print(f"Map state saved to {filename}")
+    except Exception as e:
+        print(f"Error saving state: {e}")
 
+def load_state(filename="map_state.pkl"):
+    """Load map state from a file."""
+    if not os.path.exists(filename):
+        print(f"No saved state file found: {filename}")
+        return None
+    
+    try:
+        with open(filename, 'rb') as f:
+            state = pickle.load(f)
+        # Update global orc_list
+        global orc_list
+        orc_list = state.get("orc_list", [])
+        print(f"Map state loaded from {filename}")
+        return state
+    except Exception as e:
+        print(f"Error loading state: {e}")
+        return None
+
+# -----------------------------
+# REDRAW MAP FUNCTION
+# -----------------------------
+def redraw_map(depth_path="output/sand-dpt_large_384.pfm"):
+    """Capture new image, process it, and regenerate terrain."""
+    print("Capturing new image and processing depth...")
+    
+    try:
+        # Run grab_image.py to capture new image and generate depth
+        grab_script = os.path.join("MiDaS-master", "grab_image.py")
+        if not os.path.exists(grab_script):
+            grab_script = "grab_image.py"  # Try current directory
+        
+        result = subprocess.run(["python", grab_script], 
+                              cwd=os.path.dirname(grab_script) if os.path.exists(grab_script) else ".",
+                              capture_output=True, text=True, timeout=60)
+        
+        if result.returncode != 0:
+            print(f"Error running grab_image.py: {result.stderr}")
+            return None
+        
+        print("Image captured and depth processed successfully.")
+        
+        # Regenerate terrain
+        return generate_base_terrain(depth_path)
+        
+    except subprocess.TimeoutExpired:
+        print("Timeout: Image capture took too long")
+        return None
+    except Exception as e:
+        print(f"Error during redraw: {e}")
+        return None
+
+# -----------------------------
+# INITIAL TERRAIN GENERATION
+# -----------------------------
+depth_path = "output/sand-dpt_large_384.pfm"
+Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = generate_base_terrain(depth_path)
 
 # -----------------------------
 # SPEECH SETUP
@@ -147,7 +229,10 @@ print(f"Mode: {'VOICE' if VOICE_MODE else 'TYPING'}")
 print("Commands: add a forest/desert/town/village/city in [region] called [name]")
 print("          draw a path/road between [name] and [name]")
 print("          draw a bridge from x,y to x,y")
-print("          list | reset | save | quit")
+print("          spawn orcs | clear orcs")
+print("          save state [filename] | load state [filename]")
+print("          redraw map")
+print("          list | reset | save [filename] | quit")
 
 while True:
     current_map = composite(final, path_layer, feature_layer)
@@ -168,10 +253,42 @@ while True:
         feature_layer = final.copy()
         path_layer = final.copy()
         named_locations.clear()
+        orc_list.clear()
         print("Map reset")
-    elif "save" in prompt.lower():
-        cv2.imwrite("map.png", composite(final, path_layer, feature_layer))
-        print("Saved map.png")
+    elif "redraw map" in prompt.lower():
+        print("Redrawing map...")
+        new_terrain = redraw_map(depth_path)
+        if new_terrain:
+            Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = new_terrain
+            feature_layer = final.copy()
+            path_layer = final.copy()
+            named_locations.clear()
+            orc_list.clear()
+            print("Map redrawn successfully!")
+        else:
+            print("Failed to redraw map")
+    elif prompt.lower().startswith("save state"):
+        parts = prompt.split()
+        filename = "map_state.pkl"
+        if len(parts) > 2:
+            filename = " ".join(parts[2:])
+        save_state(feature_layer, path_layer, named_locations, orc_list, filename)
+    elif prompt.lower().startswith("load state"):
+        parts = prompt.split()
+        filename = "map_state.pkl"
+        if len(parts) > 2:
+            filename = " ".join(parts[2:])
+        state = load_state(filename)
+        if state:
+            feature_layer = state["feature_layer"]
+            path_layer = state["path_layer"]
+            named_locations = state["named_locations"]
+            orc_list = state.get("orc_list", [])
+            print("Map state restored")
+    elif prompt.lower().startswith("save "):
+        filename = prompt[5:].strip() or "map.png"
+        cv2.imwrite(filename, composite(final, path_layer, feature_layer))
+        print(f"Saved map image to {filename}")
     elif "list" in prompt.lower():
         print(f"Known locations: {list(named_locations.keys())}")
     else:
