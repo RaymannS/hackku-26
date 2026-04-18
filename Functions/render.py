@@ -19,13 +19,13 @@ def overlay_image(canvas, img_path, x, y, size):
     else:
         canvas[y1:y2, x1:x2] = img
 
-def draw_tree(canvas, x, y, size=128):
+def draw_tree(canvas, x, y, size=80):
     overlay_image(canvas, "Images/tree.png", x, y, size)
 
-def draw_cactus(canvas, x, y, size=24):
+def draw_cactus(canvas, x, y, size=80):
     overlay_image(canvas, "Images/cactus.png", x, y, size)
 
-def draw_house(canvas, x, y, size=24):
+def draw_house(canvas, x, y, size=80):
     overlay_image(canvas, "Images/house.png", x, y, size)
 
 def apply_desert_terrain(canvas, mask, Z):
@@ -112,17 +112,8 @@ def add_winding(path, strength=10):
             winding.append((nx, ny))
     return winding
 
-def draw_orc(canvas, x, y, size=12):
-    # Body
-    cv2.circle(canvas, (x, y), size // 2, (30, 90, 30), -1)
-    # Head
-    cv2.circle(canvas, (x, y - size), size // 3, (40, 110, 40), -1)
-    # Eyes
-    cv2.circle(canvas, (x - 3, y - size), 2, (0, 0, 180), -1)
-    cv2.circle(canvas, (x + 3, y - size), 2, (0, 0, 180), -1)
-    # Tusks
-    cv2.line(canvas, (x - 3, y - size + 3), (x - 5, y - size + 7), (200, 200, 200), 1)
-    cv2.line(canvas, (x + 3, y - size + 3), (x + 5, y - size + 7), (200, 200, 200), 1)
+def draw_orc(canvas, x, y, size=24):
+    overlay_image(canvas, "Images/orc.png", x, y, size)
 
 def spawn_orcs(canvas, player_x, player_y, n=5, radius=60):
     spawned = 0

@@ -33,7 +33,15 @@ char_gen = CharacterGenerator()
 # WINDOW SETUP
 # -----------------------------
 cv2.namedWindow("D&D World Map", cv2.WINDOW_NORMAL)
-cv2.resizeWindow("D&D World Map", 1920, 1080)  # Adjust width and height as needed
+cv2.resizeWindow("D&D World Map", 300, 300)  # Adjust width and height as needed
+
+
+PROJECTOR_X_OFFSET = -1920  # change to your main monitor's width
+
+cv2.namedWindow("D&D World Map", cv2.WINDOW_NORMAL)
+cv2.moveWindow("D&D World Map", PROJECTOR_X_OFFSET, 0)
+cv2.setWindowProperty("D&D World Map", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
 
 # Get configuration from scene generator
 terrain_config = scene_gen.terrain_config
