@@ -222,7 +222,7 @@ def scatter_placer(mask, n=30, min_dist=40):
 # -----------------------------
 # PATHFINDING
 # -----------------------------
-def find_path(Z, start, end, avoid_mask=None, snow_lvl=240, scale=8):
+def find_path(Z, start, end, avoid_mask=None, snow_lvl=240, scale=16):
     h_full, w_full = Z.shape
     Z_small = cv2.resize(Z, (w_full//scale, h_full//scale), interpolation=cv2.INTER_AREA)
     if avoid_mask is not None:
