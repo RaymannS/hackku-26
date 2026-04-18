@@ -9,7 +9,7 @@ import pickle
 import subprocess
 import sys
 
-VOICE_MODE = True  # Change to True for voice, False for typing
+VOICE_MODE = False  # Change to True for voice, False for typing
 
 from Functions.render import *
 from Functions.prompts import *
@@ -138,7 +138,8 @@ Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = 
 # -----------------------------
 
 recognizer = sr.Recognizer()
-recognizer.pause_threshold = 0.5
+recognizer.pause_threshold = 0.8
+recognizer.non_speaking_duration = 0.5
 mic = sr.Microphone()
 
 if VOICE_MODE:
@@ -151,9 +152,8 @@ def listen_for_wake_word():
     with mic as source:
         print("\nWaiting for wake word: 'Dungeon Master'")
 
-        recognizer.pause_threshold = 1.5
-        recognizer.non_speaking_duration = 1.0
-        recognizer.pause_threshold = 0.3
+        recognizer.pause_threshold = 1.0
+        recognizer.non_speaking_duration = 0.5
 
         while True:
             try:
@@ -239,13 +239,14 @@ while True:
     # Shrink and center with black margins
     MARGIN = 70
     h, w = current_map.shape[:2]
+    print(f"HW: {h}, {w}")
     new_w = w - MARGIN * 2
     shrunk = cv2.resize(current_map, (new_w, h))
     padded = np.zeros((h, w, 3), dtype=np.uint8)
     padded[:, MARGIN:MARGIN + new_w] = shrunk
     current_map = cv2.rotate(padded, cv2.ROTATE_180)
     
-    
+
 
     cv2.imshow("D&D World Map", current_map)
     cv2.waitKey(1)
