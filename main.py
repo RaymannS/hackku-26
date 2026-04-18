@@ -160,8 +160,8 @@ def listen_for_wake_word():
                 # listen long enough for full sentence
                 audio = recognizer.listen(
                     source,
-                    timeout=20,
-                    phrase_time_limit=25
+                    timeout=10,
+                    phrase_time_limit= 15
                 )
 
                 text = recognizer.recognize_google(audio)
