@@ -238,16 +238,16 @@ class SceneGenerator:
             # Add subtle hillshade to make relief feel more three-dimensional.
             final = apply_hillshade(final, Z)
 
-            # Parchment overlay: use a lighter tint so the terrain stays bright.
-            paper = np.full_like(final, [240, 230, 205])  # Brighter parchment tone
-            final = cv2.addWeighted(final, 0.92, paper, 0.08, 0)
+            # Parchment overlay: use a very light tone so the terrain stays bright.
+            paper = np.full_like(final, [250, 240, 220])  # Lighter parchment tone
+            final = cv2.addWeighted(final, 0.90, paper, 0.10, 0)
 
-            # Add topographic contour lines for a map-like look.
-            final = draw_contour_lines(final, Z, interval=20, color=(70, 45, 30), thickness=1, alpha=0.14)
+            # Add topographic contour lines with a softer appearance.
+            final = draw_contour_lines(final, Z, interval=20, color=(85, 60, 45), thickness=1, alpha=0.10)
 
-            # Add subtle texture and vignette to improve visual richness.
-            final = apply_paper_texture(final, intensity=0.03)
-            final = apply_vignette(final, strength=0.08)
+            # Add subtle texture and a lighter vignette for a brighter map.
+            final = apply_paper_texture(final, intensity=0.02)
+            final = apply_vignette(final, strength=0.04)
         else:
             paper = np.full_like(final, [235, 220, 190])
             final = cv2.addWeighted(final, 0.92, paper, 0.08, 0)
