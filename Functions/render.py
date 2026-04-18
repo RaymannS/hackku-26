@@ -57,7 +57,7 @@ def apply_hillshade(canvas, Z, azimuth=315, altitude=45, strength=0.05):
     slope = np.arctan(np.sqrt(gx * gx + gy * gy))
     aspect = np.arctan2(gy, -gx)
     shaded = np.sin(alt) * np.cos(slope) + np.cos(alt) * np.sin(slope) * np.cos(az - aspect)
-    normalized = ((shaded - shaded.min()) / (shaded.ptp() + 1e-6)).astype(np.float32)
+    normalized = ((shaded - shaded.min()) / (np.ptp(shaded) + 1e-6)).astype(np.float32)
     shade = (normalized * 255).astype(np.uint8)
     shade = cv2.cvtColor(shade, cv2.COLOR_GRAY2BGR)
     overlay = (1.0 - normalized[..., None] * strength) * canvas.astype(np.float32)
