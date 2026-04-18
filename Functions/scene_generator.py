@@ -47,30 +47,71 @@ class TerrainConfig:
     height_levels: Dict[str, int]
     band_configs: Dict[TerrainType, BandConfig]
 
+    # The order of terrain bands is fixed and is used to generate the final map.
+    BAND_ORDER = [
+        TerrainType.DEEP_WATER,
+        TerrainType.SHALLOW_WATER,
+        TerrainType.COASTAL,
+        TerrainType.LOWLANDS,
+        TerrainType.HILLS,
+        TerrainType.HIGHLANDS,
+        TerrainType.MOUNTAINS,
+        TerrainType.PEAKS
+    ]
+
+    # Threshold key names must match these band endings.
+    BAND_THRESHOLD_KEYS = [
+        "deep_water_level",
+        "shallow_water_level",
+        "coastal_level",
+        "lowlands_level",
+        "hills_level",
+        "highlands_level",
+        "mountains_level",
+        "peaks_level"
+    ]
+
+    # Colors are defined here; modify these tuples to change the gradient for each band.
+    BAND_COLOR_MAP = {
+        TerrainType.DEEP_WATER: ((10, 20, 60), (15, 30, 80)),          # Very deep blue
+        TerrainType.SHALLOW_WATER: ((15, 30, 80), (30, 60, 120)),     # Deep blue to medium blue
+        TerrainType.COASTAL: ((210, 180, 140), (139, 90, 43)),         # Sandy yellow to brown
+        TerrainType.LOWLANDS: ((85, 107, 47), (107, 142, 35)),        # Olive green to yellow-green
+        TerrainType.HILLS: ((107, 142, 35), (34, 139, 34)),           # Yellow-green to forest green
+        TerrainType.HIGHLANDS: ((34, 139, 34), (25, 100, 25)),        # Forest green to dark green
+        TerrainType.MOUNTAINS: ((80, 80, 80), (120, 120, 120)),       # Gray to light gray
+        TerrainType.PEAKS: ((120, 120, 120), (240, 240, 240))         # Light gray to snow white
+    }
+
     @classmethod
     def default(cls) -> 'TerrainConfig':
+        # Change elevation thresholds here. Only this block is required to adjust band heights.
+        height_levels = {
+            "deep_water_level": 45,      # Max elevation of deep ocean
+            "shallow_water_level": 78,   # Max elevation of shallow ocean
+            "coastal_level": 88,         # Max elevation of beaches/coastal plains
+            "lowlands_level": 115,       # Max elevation of lowland plains
+            "hills_level": 150,          # Max elevation of rolling hills
+            "highlands_level": 175,      # Max elevation of highlands
+            "mountains_level": 220,      # Max elevation of mountain slopes
+            "peaks_level": 255           # Top elevation for snowy peaks
+        }
         return cls(
-            height_levels={
-                "deep_water_level": 25,
-                "shallow_water_level": 50,
-                "coastal_level": 75,
-                "lowlands_level": 100,
-                "hills_level": 125,
-                "highlands_level": 150,
-                "mountains_level": 200,
-                "peaks_level": 255
-            },
-            band_configs={
-                TerrainType.DEEP_WATER: BandConfig(0, 25, (10, 20, 60), (15, 30, 80)),        # Very deep blue
-                TerrainType.SHALLOW_WATER: BandConfig(25, 50, (15, 30, 80), (30, 60, 120)),   # Deep blue to medium blue
-                TerrainType.COASTAL: BandConfig(50, 75, (30, 60, 120), (60, 100, 160)),       # Medium blue to light blue
-                TerrainType.LOWLANDS: BandConfig(75, 100, (101, 67, 33), (139, 90, 43)),      # Brown to tan
-                TerrainType.HILLS: BandConfig(100, 125, (139, 90, 43), (160, 120, 60)),       # Tan to light brown
-                TerrainType.HIGHLANDS: BandConfig(125, 150, (160, 120, 60), (34, 139, 34)),   # Light brown to green
-                TerrainType.MOUNTAINS: BandConfig(150, 200, (80, 80, 80), (120, 120, 120)),   # Gray to light gray
-                TerrainType.PEAKS: BandConfig(200, 255, (120, 120, 120), (200, 200, 200))     # Light gray to white
-            }
+            height_levels=height_levels,
+            band_configs=cls.build_band_configs(height_levels)
         )
+
+    @classmethod
+    def build_band_configs(cls, height_levels: Dict[str, int]) -> Dict[TerrainType, BandConfig]:
+        # Build bands from a single set of thresholds using BAND_ORDER.
+        band_configs: Dict[TerrainType, BandConfig] = {}
+        low = 0
+        for terrain_type, threshold_key in zip(cls.BAND_ORDER, cls.BAND_THRESHOLD_KEYS):
+            high = height_levels[threshold_key]
+            start_color, end_color = cls.BAND_COLOR_MAP[terrain_type]
+            band_configs[terrain_type] = BandConfig(low, high, start_color, end_color)
+            low = high
+        return band_configs
 
 @dataclass
 class ItemConfig:
@@ -159,18 +200,18 @@ class SceneGenerator:
                 mask = (Z >= config.in_min) & (Z < config.in_max)
                 final[mask] = band_image[mask]
 
-        # Parchment overlay
-        paper = np.full_like(final, [235, 220, 190])
+        # Parchment overlay: change weights to make the page look more or less faded.
+        paper = np.full_like(final, [235, 220, 190])  # RGB parchment tone
         final = cv2.addWeighted(final, 0.85, paper, 0.15, 0)
 
-        # Create compatibility masks for backward compatibility
+        # Create masks for core terrain zones.
         levels = self.terrain_config.height_levels
         water_mask = Z < levels["coastal_level"]  # All water areas
         mountain_mask = Z >= levels["mountains_level"]  # Mountains and peaks
-        snow_mask = Z >= levels["peaks_level"] - 10  # High peaks get snow
-        cliffs = slope > 120
+        snow_mask = Z >= levels["peaks_level"] - 10  # High peaks get snow; adjust offset for more/less snow
+        cliffs = slope > 120  # Increase/decrease this to make cliff edges sharper or softer
 
-        # Create dummy band images for compatibility (use the final image)
+        # Placeholder band images for APIs expecting separate band layers.
         dummy_band = final.copy()
 
         return (Z, dummy_band, dummy_band, dummy_band, water_mask, mountain_mask,
@@ -203,9 +244,10 @@ class SceneGenerator:
         levels = self.terrain_config.height_levels
 
         # Create terrain suitability mask
-        terrain_mask = config.terrain_mask(Z, levels["sea_level"],
-                                         levels["mountain_level"],
-                                         levels["snow_level"])
+        terrain_mask = config.terrain_mask(Z,
+                                         levels["coastal_level"],
+                                         levels["mountains_level"],
+                                         levels["peaks_level"])
 
         # Apply region mask if provided
         if region_mask is not None:
@@ -260,9 +302,9 @@ class SceneGenerator:
         
         Example usage:
         >>> scene_gen.update_terrain_config(
-        ...     height_levels={"sea_level": 100, "mountain_level": 200},
+        ...     height_levels={"coastal_level": 100, "mountains_level": 200},
         ...     band_configs={
-        ...         TerrainType.WATER: BandConfig(0, 100, 0, 180, cv2.COLORMAP_OCEAN)
+        ...         TerrainType.DEEP_WATER: BandConfig(0, 100, (0, 0, 180), (0, 100, 255))
         ...     }
         ... )
         """
