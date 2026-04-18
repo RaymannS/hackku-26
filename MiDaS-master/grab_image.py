@@ -53,8 +53,7 @@ def extract_sandbox_from_frame(
 
     sandbox = frame[y_min:y_max, x_min:x_max]
 
-    if sandbox.size == 0:
-        raise RuntimeError("Crop produced empty image")
+
 
     # optional debugging
     if show_detection:
@@ -66,7 +65,13 @@ def extract_sandbox_from_frame(
         cv2.imshow("green mask", mask)
 
     if show_crop:
-        cv2.imshow("sandbox", sandbox)
+        if sandbox.size == 0:
+            raise RuntimeError("Crop produced empty image")
+        else:
+            cv2.imshow("sandbox", sandbox)
+
+    if sandbox.size == 0:
+        raise RuntimeError("Crop produced empty image")
 
     if show_mask or show_detection or show_crop:
         cv2.waitKey(0)
@@ -128,7 +133,7 @@ if __name__ == "__main__":
     input_dir = capture_image_for_midas()
     print("File captured")
     # run MiDaS using the generated folder
-    # midas_dir = os.path.dirname(os.path.abspath(__file__))
-    # run_cmd = [sys.executable, "run.py", "--model_type", "dpt_large_384",
-    #            "--input_path", input_dir, "--output_path", "output"]
-    # subprocess.run(run_cmd, cwd=midas_dir, check=True)
+    midas_dir = os.path.dirname(os.path.abspath(__file__))
+    run_cmd = [sys.executable, "run.py", "--model_type", "dpt_large_384",
+               "--input_path", input_dir, "--output_path", "output"]
+    subprocess.run(run_cmd, cwd=midas_dir, check=True)
