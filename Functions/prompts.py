@@ -5,6 +5,9 @@ import re
 from .location_determ import *
 from .render import *
 
+orc_list = []  # persistent state, lives outside your if-block
+orc_canvas = None  # ← add this
+
 def parse_name(prompt):
     match = re.search(r'(?:called|named)\s+(.+?)$', prompt, re.IGNORECASE)
     if match:
@@ -25,6 +28,12 @@ def get_player_location():
     return (0, 0)
 
 def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_level, snow_level):
+    global orc_list, orc_canvas  # persistent state, lives outside your if-block
+
+    # initialize orc_canvas once
+    if orc_canvas is None:
+        orc_canvas = np.zeros_like(feature_canvas)
+        
     p = prompt.lower()
     h, w = Z.shape
     water_mask = Z < sea_level
@@ -98,9 +107,16 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_
         start, end = parse_points(p, h, w)
         draw_bridge(path_canvas, start, end)  # bridges also on path layer
         print(f"Drew bridge from {start} to {end}")
+        
 
     if "orc" in p:
-        player_x, player_y = get_player_location()  # your future CV function
-        spawn_orcs(feature_canvas, player_x, player_y, n=5, radius=60)
+        player_x, player_y = get_player_location()
+        orc_list = spawn_orcs(feature_canvas, player_x, player_y, n=5, radius=60)
+        
+    if any(word in p for word in ["defeated", "kill", "slain"]):
+        orc_canvas[:] = 0  # wipe it — orcs gone, world intact
+        orc_list = []
+        
+    
         
     return feature_canvas, path_canvas

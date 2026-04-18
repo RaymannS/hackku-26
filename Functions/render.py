@@ -81,14 +81,14 @@ def spawn_orcs(canvas, player_x, player_y, n=5, radius=60):
         y = int(player_y + dist * np.sin(angle))
         h, w = canvas.shape[:2]
         if 0 <= x < w and 0 <= y < h:
-            if all(abs(x - px) > 15 or abs(y - py) > 15 for px, py in placed):
+            if all(abs(x - orc["x"]) > 15 or abs(y - orc["y"]) > 15 for orc in placed):
                 draw_orc(canvas, x, y)
-                placed.append((x, y))
+                placed.append({"x": x, "y": y, "defeated": False})
                 spawned += 1
         attempts += 1
         
     print(f"Spawned {spawned} orcs near ({player_x}, {player_y})")
-    
+    return placed
     
 def draw_label(canvas, x, y, name, size=0.5):
     font = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
