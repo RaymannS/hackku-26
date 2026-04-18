@@ -44,6 +44,7 @@ mount_cfg = {
 depth = cv2.imread("MiDaS-master/output/sand-dpt_large_384.pfm", cv2.IMREAD_UNCHANGED)
 Z = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
 Z = Z.astype(np.uint8)
+
 # -----------------------------
 # SLOPE (cliffs)
 # -----------------------------
