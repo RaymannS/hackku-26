@@ -6,44 +6,73 @@ import numpy as np
 from datetime import datetime
 
 
-def detect_and_crop_box(frame):
-    """Detect rectangular box in frame and crop to its region."""
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    
-    # Apply adaptive threshold to handle varying lighting
-    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                                   cv2.THRESH_BINARY, 11, 2)
-    
-    # Find contours
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    if not contours:
-        print("Warning: No box detected, using full frame")
-        return frame
-    
-    # Find the largest contour by area
-    largest_contour = max(contours, key=cv2.contourArea)
-    area = cv2.contourArea(largest_contour)
-    
-    # Fit rectangle to contour
-    x, y, w, h = cv2.boundingRect(largest_contour)
-    
-    # Add small margin to avoid edge artifacts
-    margin = 5
-    x = max(0, x - margin)
-    y = max(0, y - margin)
-    w = min(frame.shape[1] - x, w + 2 * margin)
-    h = min(frame.shape[0] - y, h + 2 * margin)
-    
-    # Only crop if the box is a reasonable size (at least 20% of frame)
-    frame_area = frame.shape[0] * frame.shape[1]
-    if area > frame_area * 0.2:
-        cropped = frame[y:y+h, x:x+w]
-        print(f"Box detected and cropped: {w}x{h} from position ({x}, {y})")
-        return cropped
-    else:
-        print(f"Box too small ({area} < {frame_area * 0.2}), using full frame")
-        return frame
+def extract_sandbox_from_frame(
+    frame,
+    pad_left=25,
+    pad_right=25,
+    pad_top=25,
+    pad_bottom=25,
+    show_mask=False,
+    show_detection=False,
+    show_crop=False
+):
+    """
+    Detect lime green corner markers and crop sandbox interior.
+
+    Parameters
+    ----------
+    frame : np.ndarray
+        image already loaded (ex: webcam frame)
+
+    padding values move the crop inward
+
+    Returns
+    -------
+    sandbox : np.ndarray
+    """
+
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    lower_green = np.array([35, 80, 80])
+    upper_green = np.array([85, 255, 255])
+
+    mask = cv2.inRange(hsv, lower_green, upper_green)
+
+    kernel = np.ones((5,5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+    ys, xs = np.where(mask > 0)
+
+    if len(xs) == 0:
+        raise RuntimeError("No green markers detected")
+
+    x_min = np.min(xs) + pad_left
+    x_max = np.max(xs) - pad_right
+    y_min = np.min(ys) + pad_top
+    y_max = np.max(ys) - pad_bottom
+
+    sandbox = frame[y_min:y_max, x_min:x_max]
+
+    if sandbox.size == 0:
+        raise RuntimeError("Crop produced empty image")
+
+    # optional debugging
+    if show_detection:
+        debug = frame.copy()
+        cv2.rectangle(debug,(x_min,y_min),(x_max,y_max),(0,255,0),3)
+        cv2.imshow("sandbox bounds", debug)
+
+    if show_mask:
+        cv2.imshow("green mask", mask)
+
+    if show_crop:
+        cv2.imshow("sandbox", sandbox)
+
+    if show_mask or show_detection or show_crop:
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    return sandbox
 
 
 def capture_image_for_midas():
@@ -75,10 +104,16 @@ def capture_image_for_midas():
         raise RuntimeError("Failed to capture image")
 
     # Detect and crop to box region
-    frame = detect_and_crop_box(frame)
-
-    # Resize to standard dimensions for MiDaS input
-    frame = cv2.resize(frame, (576, 384), interpolation=cv2.INTER_AREA)
+    frame = extract_sandbox_from_frame(
+        frame,
+        pad_left=40,    # Increase number to move inward
+        pad_right=50,
+        pad_top=40,
+        pad_bottom=40,
+        show_mask=False,
+        show_detection=False,
+        show_crop=False
+    )
 
     # Use fixed filename for speed
     image_path = os.path.join(full_dir, "sand.jpg")  # JPG is faster than PNG
@@ -91,8 +126,9 @@ def capture_image_for_midas():
 
 if __name__ == "__main__":
     input_dir = capture_image_for_midas()
+    print("File captured")
     # run MiDaS using the generated folder
-    midas_dir = os.path.dirname(os.path.abspath(__file__))
-    run_cmd = [sys.executable, "run.py", "--model_type", "dpt_large_384",
-               "--input_path", input_dir, "--output_path", "output"]
-    subprocess.run(run_cmd, cwd=midas_dir, check=True)
+    # midas_dir = os.path.dirname(os.path.abspath(__file__))
+    # run_cmd = [sys.executable, "run.py", "--model_type", "dpt_large_384",
+    #            "--input_path", input_dir, "--output_path", "output"]
+    # subprocess.run(run_cmd, cwd=midas_dir, check=True)
