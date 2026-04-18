@@ -57,7 +57,7 @@ def capture_image_for_midas():
     os.makedirs(full_dir, exist_ok=True)
 
     # Initialize camera with optimized settings
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Use DirectShow for Windows speed
+    cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)  # Use DirectShow for Windows speed
     
     if not cap.isOpened():
         raise RuntimeError("Could not open webcam")
