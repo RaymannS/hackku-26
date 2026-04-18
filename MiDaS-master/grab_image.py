@@ -121,13 +121,28 @@ def capture_image_for_midas():
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     cap.set(cv2.CAP_PROP_FPS, 60)
-    
-    # Quick capture
-    ret, frame = cap.read()
+    cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
+
+    # Warm up the camera and choose the sharpest frame
+    best_frame = None
+    best_score = -1.0
+    for _ in range(10):
+        ret, candidate = cap.read()
+        if not ret or candidate is None:
+            continue
+
+        gray = cv2.cvtColor(candidate, cv2.COLOR_BGR2GRAY)
+        score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+        if score > best_score:
+            best_score = score
+            best_frame = candidate
+
     cap.release()
 
-    if not ret or frame is None:
+    if best_frame is None:
         raise RuntimeError("Failed to capture image")
+
+    frame = best_frame
 
     # Detect and crop to box region
     frame = extract_sandbox_from_frame(
