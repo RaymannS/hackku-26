@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import random
 import re
+from .capture_utils import *
 from .location_determ import *
 from .render import *
 from .scene_generator import *
@@ -26,10 +27,27 @@ def parse_named_path(prompt):
         return match.group(1).strip().lower(), match.group(2).strip().lower()
     return None, None
 
+
+
 def get_player_location(Z):
-    w = 500
-    h = 500
+    h, w = Z.shape
+    try:
+        sandbox = capture_sandbox_frame()
+        centers = find_red_targets(sandbox)
+        if centers:
+            avg_x = sum(x for x, _ in centers) / len(centers)
+            avg_y = sum(y for _, y in centers) / len(centers)
+            sh, sw = sandbox.shape[:2]
+            player_x = int(avg_x / sw * w)
+            player_y = int(avg_y / sh * h)
+            print(f"Detected {len(centers)} red targets; player location: ({player_x}, {player_y})")
+            return player_x, player_y
+        print("No red targets found; falling back to center")
+    except Exception as exc:
+        print(f"Player location detection failed: {exc}")
+
     return w // 2, h // 2
+
 
 def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_level, snow_level, named_locations):
         
