@@ -1,8 +1,11 @@
+from logging import config
+
 import numpy as np
 import cv2
 import random
 import os
 from typing import Dict, List, Tuple, Optional, Callable
+from Functions.render import overlay_image
 from dataclasses import dataclass
 from enum import Enum
 
@@ -55,7 +58,7 @@ class CharacterGenerator:
             body_color=(30, 90, 30),
             head_color=(40, 110, 40),
             eye_color=(0, 0, 180),
-            size=12,
+            size=50,
             special_features=self._draw_orc_features
         )
         orc_stats = CharacterStats(
@@ -78,18 +81,7 @@ class CharacterGenerator:
         self.character_configs[char_type] = config
 
     def _draw_orc(self, canvas, x, y, config: CharacterConfig):
-        """Draw an orc character."""
-        size = config.appearance.size
-        # Body
-        cv2.circle(canvas, (x, y), size // 2, config.appearance.body_color, -1)
-        # Head
-        cv2.circle(canvas, (x, y - size), size // 3, config.appearance.head_color, -1)
-        # Eyes
-        cv2.circle(canvas, (x - 3, y - size), 2, config.appearance.eye_color, -1)
-        cv2.circle(canvas, (x + 3, y - size), 2, config.appearance.eye_color, -1)
-        # Special features (tusks)
-        if config.appearance.special_features:
-            config.appearance.special_features(canvas, x, y, size)
+        overlay_image(canvas, "Images/orc.png", x, y, config.appearance.size * 2)
 
     def _draw_orc_features(self, canvas, x, y, size):
         """Draw orc-specific features like tusks."""
@@ -126,6 +118,10 @@ class CharacterGenerator:
                     }
                     placed.append(char_data)
                     spawned += 1
+                else:
+                    print(f"  too close to existing orc")
+            else:
+                print(f"  out of bounds: {x},{y} vs {w},{h}")
             attempts += 1
 
         print(f"Spawned {spawned} {config.name}s near ({player_x}, {player_y})")

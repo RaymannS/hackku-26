@@ -26,9 +26,10 @@ def parse_named_path(prompt):
         return match.group(1).strip().lower(), match.group(2).strip().lower()
     return None, None
 
-def get_player_location():
-    """Dummy — replace with your OpenCV implementation later."""
-    return (0, 0)
+def get_player_location(Z):
+    w = 500
+    h = 500
+    return w // 2, h // 2
 
 def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_level, snow_level, named_locations):
         
@@ -104,7 +105,7 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_
         
 
     if "orc" in p:
-        player_x, player_y = get_player_location()
+        player_x, player_y = get_player_location(0)
         char_gen.spawn_characters(feature_canvas, player_x, player_y, CharacterType.ORC, n=5, radius=60)
         
     if any(word in p for word in ["defeated", "kill", "slain"]):

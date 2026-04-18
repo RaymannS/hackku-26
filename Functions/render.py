@@ -3,21 +3,32 @@ import numpy as np
 import random
 
 def overlay_image(canvas, img_path, x, y, size):
-    img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)  # load with alpha
+    img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+    if img is None:
+        print(f"Could not load image: {img_path}")
+        return
     img = cv2.resize(img, (size, size))
     
     x1, y1 = x - size//2, y - size//2
     x2, y2 = x1 + size, y1 + size
+
+    # clamp to canvas bounds
+    cx1, cy1 = max(0, x1), max(0, y1)
+    cx2, cy2 = min(canvas.shape[1], x2), min(canvas.shape[0], y2)
     
-    # bounds check
-    if x1 < 0 or y1 < 0 or x2 > canvas.shape[1] or y2 > canvas.shape[0]:
+    # crop image to match
+    ix1, iy1 = cx1 - x1, cy1 - y1
+    ix2, iy2 = ix1 + (cx2 - cx1), iy1 + (cy2 - cy1)
+
+    if cx2 <= cx1 or cy2 <= cy1:
         return
 
-    if img.shape[2] == 4:  # has alpha channel
-        alpha = img[:, :, 3:4] / 255.0
-        canvas[y1:y2, x1:x2] = (img[:, :, :3] * alpha + canvas[y1:y2, x1:x2] * (1 - alpha)).astype(np.uint8)
+    crop = img[iy1:iy2, ix1:ix2]
+    if img.shape[2] == 4:
+        alpha = crop[:, :, 3:4] / 255.0
+        canvas[cy1:cy2, cx1:cx2] = (crop[:, :, :3] * alpha + canvas[cy1:cy2, cx1:cx2] * (1 - alpha)).astype(np.uint8)
     else:
-        canvas[y1:y2, x1:x2] = img
+        canvas[cy1:cy2, cx1:cx2] = crop
 
 def draw_tree(canvas, x, y, size=80):
     overlay_image(canvas, "Images/tree.png", x, y, size)
@@ -112,31 +123,10 @@ def add_winding(path, strength=10):
             winding.append((nx, ny))
     return winding
 
-def draw_orc(canvas, x, y, size=24):
-    overlay_image(canvas, "Images/orc.png", x, y, size)
+from PIL import ImageFont, ImageDraw, Image
 
-def spawn_orcs(canvas, player_x, player_y, n=5, radius=60):
-    spawned = 0
-    attempts = 0
-    placed = []
-    while spawned < n and attempts < 200:
-        angle = random.uniform(0, 2 * np.pi)
-        dist = random.uniform(radius * 0.3, radius)
-        x = int(player_x + dist * np.cos(angle))
-        y = int(player_y + dist * np.sin(angle))
-        h, w = canvas.shape[:2]
-        if 0 <= x < w and 0 <= y < h:
-            if all(abs(x - orc["x"]) > 15 or abs(y - orc["y"]) > 15 for orc in placed):
-                draw_orc(canvas, x, y)
-                placed.append({"x": x, "y": y, "defeated": False})
-                spawned += 1
-        attempts += 1
-        
-    print(f"Spawned {spawned} orcs near ({player_x}, {player_y})")
-    return placed
-    
 def draw_label(canvas, x, y, name, size=0.5):
-    font = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
+    font = cv2.FONT_HERSHEY_SCRIPT_SIMPLEX
     thickness = 1
     (tw, th), baseline = cv2.getTextSize(name, font, size, thickness)
     tx = x - tw // 2

@@ -33,14 +33,14 @@ char_gen = CharacterGenerator()
 # WINDOW SETUP
 # -----------------------------
 cv2.namedWindow("D&D World Map", cv2.WINDOW_NORMAL)
-cv2.resizeWindow("D&D World Map", 300, 300)  # Adjust width and height as needed
-
+cv2.resizeWindow("D&D World Map", 1920, 1080)  # Adjust width and height as needed
 
 PROJECTOR_X_OFFSET = -1920  # change to your main monitor's width
 
 cv2.namedWindow("D&D World Map", cv2.WINDOW_NORMAL)
 cv2.moveWindow("D&D World Map", PROJECTOR_X_OFFSET, 0)
 cv2.setWindowProperty("D&D World Map", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
 
 
 # Get configuration from scene generator
@@ -183,7 +183,17 @@ while True:
     char_gen.draw_all_characters(feature_layer)
     
     current_map = composite(final, path_layer, feature_layer)
+    
+    # Shrink and center with black margins
+    MARGIN = 70
+    h, w = current_map.shape[:2]
+    new_w = w - MARGIN * 2
+    shrunk = cv2.resize(current_map, (new_w, h))
+    padded = np.zeros((h, w, 3), dtype=np.uint8)
+    padded[:, MARGIN:MARGIN + new_w] = shrunk
+
     cv2.imshow("D&D World Map", current_map)
+    cv2.imshow("D&D World Map", padded)
     cv2.waitKey(1)
 
     if VOICE_MODE:
