@@ -18,7 +18,6 @@ sea_level = 90
 mountain_level = 180
 snow_level = 240
 
-
 # -----------------------------
 # BAND CONFIGS
 # -----------------------------

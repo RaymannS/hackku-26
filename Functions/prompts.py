@@ -2,8 +2,8 @@ import cv2
 import numpy as np
 import random
 import re
-from render import *
-from location_determ import *
+from .location_determ import *
+from .render import *
 
 def parse_name(prompt):
     match = re.search(r'(?:called|named)\s+(.+?)$', prompt, re.IGNORECASE)
