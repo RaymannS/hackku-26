@@ -153,7 +153,7 @@ def load_state(filename="map_state.pkl"):
 # -----------------------------
 # REDRAW MAP FUNCTION
 # -----------------------------
-def redraw_map(depth_path="output/sand-dpt_large_384.pfm"):
+def redraw_map(depth_path="MiDaS-master/output/sand-dpt_large_384.pfm"):
     """Capture new image, process it, and regenerate terrain."""
     print("Capturing new image and processing depth...")
     
