@@ -5,52 +5,6 @@ import os
 from typing import Dict, List, Tuple, Optional, Callable
 from dataclasses import dataclass
 from enum import Enum
-import sys
-
-# Import read_pfm for loading depth files
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-try:
-    from MiDaS-master.utils import read_pfm
-except ImportError:
-    # Fallback: define read_pfm locally
-    import re
-    def read_pfm(path):
-        """Read pfm file."""
-        with open(path, "rb") as file:
-            color = None
-            width = None
-            height = None
-            scale = None
-            endian = None
-
-            header = file.readline().rstrip()
-            if header.decode("ascii") == "PF":
-                color = True
-            elif header.decode("ascii") == "Pf":
-                color = False
-            else:
-                raise Exception("Not a PFM file: " + path)
-
-            dim_match = re.match(r"^(\d+)\s(\d+)\s$", file.readline().decode("ascii"))
-            if dim_match:
-                width, height = list(map(int, dim_match.groups()))
-            else:
-                raise Exception("Malformed PFM header.")
-
-            scale = float(file.readline().decode("ascii").rstrip())
-            if scale < 0:
-                endian = "<"
-                scale = -scale
-            else:
-                endian = ">"
-
-            data = np.fromfile(file, endian + "f")
-            shape = (height, width, 3) if color else (height, width)
-
-            data = np.reshape(data, shape)
-            data = np.flipud(data)
-
-            return data, scale
 
 # Import render functions
 try:
@@ -242,16 +196,9 @@ class SceneGenerator:
         if not os.path.exists(depth_path):
             raise FileNotFoundError(f"Depth file not found: {depth_path}")
 
-        # Use read_pfm for proper PFM file loading
-        if depth_path.endswith('.pfm'):
-            depth, scale = read_pfm(depth_path)
-            # Handle multi-channel PFM (take first channel if needed)
-            if depth.ndim == 3:
-                depth = depth[:, :, 0]
-        else:
-            depth = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
-            if depth is None:
-                raise ValueError(f"Failed to load depth file: {depth_path}")
+        depth = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
+        if depth is None:
+            raise ValueError(f"Failed to load depth file: {depth_path}")
 
         Z = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 

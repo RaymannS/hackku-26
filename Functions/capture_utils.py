@@ -1,10 +1,10 @@
 import cv2
 import numpy as np
 
-PAD_LEFT = 0
-PAD_RIGHT = 0
-PAD_TOP = 0
-PAD_BOTTOM = 0
+PAD_LEFT = 170
+PAD_RIGHT = 150
+PAD_TOP = 130
+PAD_BOTTOM = 120
 
 
 def _pink_hsv_target():

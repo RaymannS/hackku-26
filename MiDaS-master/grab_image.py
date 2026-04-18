@@ -18,9 +18,9 @@ def extract_sandbox_from_frame(
     pad_right=25,
     pad_top=25,
     pad_bottom=25,
-    show_mask=True,
-    show_detection=True,
-    show_crop=True
+    show_mask=False,
+    show_detection=False,
+    show_crop=False
 ):
     """
     Detect pink corner markers and crop sandbox interior.
