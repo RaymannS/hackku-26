@@ -133,9 +133,9 @@ def capture_image_for_midas():
     frame = extract_sandbox_from_frame(
         frame,
         pad_left    =170,    # Increase number to move inward
-        pad_right   =150,
+        pad_right   =175,
         pad_top     =130,
-        pad_bottom  =120,
+        pad_bottom  =135,
         show_mask=False,
         show_detection=False,
         show_crop=False
