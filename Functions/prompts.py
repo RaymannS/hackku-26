@@ -43,7 +43,8 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_
         ItemType.DESERT: ["desert"],
         ItemType.TOWN: ["town"],
         ItemType.VILLAGE: ["village"], 
-        ItemType.CITY: ["city"]
+        ItemType.CITY: ["city"],
+        ItemType.CASTLE: ["castle"]
     }
 
     # Check for item generation commands
@@ -58,9 +59,9 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_
                 cy = int(np.mean([y for x, y in positions]))
                 draw_label(feature_canvas, cx, cy, name)
                 named_locations[name.lower()] = (cx, cy)
-                print(f"Labelled {item_type.value} as '{name}'")
+                print(f"Labelled {item_type.value} as '{name}' at '{(cx, cy)}'")
             print(f"Generated {len(positions)} {item_type.value} features")
-            return feature_canvas, path_canvas
+            #return feature_canvas, path_canvas
 
     # Special handling for deserts (they modify terrain)
     if "desert" in p and not ("path" in p or "road" in p):

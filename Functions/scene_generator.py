@@ -9,7 +9,7 @@ from enum import Enum
 # Import render functions
 try:
     from .render import (
-        draw_tree, draw_cactus, draw_house, draw_label,
+        draw_tree, draw_cactus, draw_house, draw_label, draw_castle,
         apply_desert_terrain, draw_contour_lines,
         apply_hillshade, apply_paper_texture, apply_vignette
     )
@@ -18,7 +18,7 @@ except ImportError:
     def draw_tree(*args): pass
     def draw_cactus(*args): pass  
     def draw_house(*args): pass
-    def draw_label(*args): pass
+    #def draw_label(*args): pass
     def apply_desert_terrain(*args): pass
     def draw_contour_lines(*args): return args[0]
     def apply_hillshade(*args): return args[0]
@@ -42,6 +42,7 @@ class ItemType(Enum):
     VILLAGE = "village"
     CITY = "city"
     ORC = "orc"
+    CASTLE = "castle"
 
 @dataclass
 class BandConfig:
@@ -81,8 +82,8 @@ class TerrainConfig:
 
     # Colors are defined here; modify these tuples to change the gradient for each band.
     BAND_COLOR_MAP = {
-        TerrainType.DEEP_WATER: ((35, 70, 140), (70, 130, 220)),          # Bright deep ocean blue
-        TerrainType.SHALLOW_WATER: ((95, 145, 215), (160, 200, 245)),     # Brighter coastal blue
+        TerrainType.DEEP_WATER: ((20, 52, 164), (0, 150, 255)),          # Bright deep ocean blue
+        TerrainType.SHALLOW_WATER: ((0, 150, 255), (0, 255, 255)),     # Brighter coastal blue
         TerrainType.COASTAL: ((240, 210, 160), (215, 160, 100)),          # Warm glowing sand
         TerrainType.LOWLANDS: ((145, 195, 130), (115, 160, 100)),         # Brighter lowland green
         TerrainType.HILLS: ((115, 165, 110), (90, 135, 75)),              # Lush hill green
@@ -128,6 +129,7 @@ class ItemConfig:
     min_distance: int
     draw_function: Callable
     size_range: Optional[Tuple[int, int]] = None
+    cluster_radius: int = 80  # ← add this
 
 class SceneGenerator:
     def __init__(self, terrain_config: Optional[TerrainConfig] = None, style_enabled: bool = True):
@@ -147,33 +149,45 @@ class SceneGenerator:
         return {
             ItemType.FOREST: ItemConfig(
                 terrain_mask=lambda Z, sea, mountain, snow: (Z >= sea) & (Z < mountain),
-                count_range=(25, 40),
-                min_distance=20,
-                draw_function=lambda canvas, x, y: draw_tree(canvas, x, y)
+                count_range=(40, 60),
+                min_distance=1,
+                draw_function=lambda canvas, x, y: draw_tree(canvas, x, y),
+                cluster_radius=80
             ),
             ItemType.DESERT: ItemConfig(
                 terrain_mask=lambda Z, sea, mountain, snow: (Z >= sea) & (Z < sea + 50),
                 count_range=(30, 45),
                 min_distance=25,
-                draw_function=lambda canvas, x, y: draw_cactus(canvas, x, y)
+                draw_function=lambda canvas, x, y: draw_cactus(canvas, x, y),
+                cluster_radius=80
             ),
             ItemType.TOWN: ItemConfig(
                 terrain_mask=lambda Z, sea, mountain, snow: (Z >= sea + 5) & (Z < mountain - 20),
                 count_range=(3, 8),
                 min_distance=15,
-                draw_function=lambda canvas, x, y: draw_house(canvas, x, y)
+                draw_function=lambda canvas, x, y: draw_house(canvas, x, y),
+                cluster_radius=40
             ),
             ItemType.VILLAGE: ItemConfig(
                 terrain_mask=lambda Z, sea, mountain, snow: (Z >= sea + 5) & (Z < mountain - 20),
                 count_range=(2, 5),
                 min_distance=12,
-                draw_function=lambda canvas, x, y: draw_house(canvas, x, y, size=10)
+                draw_function=lambda canvas, x, y: draw_house(canvas, x, y),
+                cluster_radius=40
             ),
             ItemType.CITY: ItemConfig(
                 terrain_mask=lambda Z, sea, mountain, snow: (Z >= sea + 5) & (Z < mountain - 20),
                 count_range=(8, 15),
                 min_distance=18,
-                draw_function=lambda canvas, x, y: draw_house(canvas, x, y, size=16)
+                draw_function=lambda canvas, x, y: draw_house(canvas, x, y),
+                cluster_radius=60
+            ),
+            ItemType.CASTLE: ItemConfig(
+                terrain_mask=lambda Z, sea, mountain, snow: (Z >= sea + 5) & (Z < snow),
+                count_range=(1,1),
+                min_distance=0,
+                draw_function=lambda canvas, x, y: draw_castle(canvas, x, y),
+                cluster_radius=100
             )
         }
 
@@ -289,7 +303,8 @@ class SceneGenerator:
 
         # Generate item positions
         count = random.randint(*config.count_range)
-        positions = self._scatter_placer(terrain_mask, count, config.min_distance)
+        positions = self._scatter_placer(terrain_mask, count, config.min_distance, config.cluster_radius)
+
 
         # Draw items
         for x, y in positions:
@@ -297,16 +312,30 @@ class SceneGenerator:
 
         return positions
 
-    def _scatter_placer(self, mask: np.ndarray, n: int, min_dist: int) -> List[Tuple[int, int]]:
-        """Scatter n points on mask with minimum distance constraints."""
+    def _scatter_placer(self, mask: np.ndarray, n: int, min_dist: int, radius: int = 80) -> List[Tuple[int, int]]:
         coords = np.argwhere(mask).tolist()
         if not coords:
             return []
 
-        random.shuffle(coords)
+        h, w = mask.shape
+
+        # only consider center points that are at least radius away from edges
+        interior = [(y, x) for y, x in coords 
+                    if x >= radius and x < w - radius and y >= radius and y < h - radius]
+        
+        if not interior:
+            interior = coords  # fallback if map is too small
+
+        cy, cx = random.choice(interior)
+
+        nearby = [(y, x) for y, x in coords if np.sqrt((x - cx)**2 + (y - cy)**2) <= radius]
+        if not nearby:
+            nearby = coords
+
+        random.shuffle(nearby)
         placed = []
 
-        for y, x in coords:
+        for y, x in nearby:
             if len(placed) >= n:
                 break
             if all(abs(x - px) >= min_dist and abs(y - py) >= min_dist for px, py in placed):
