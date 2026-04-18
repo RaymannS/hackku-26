@@ -41,18 +41,9 @@ mount_cfg = {
 # -----------------------------
 # TERRAIN
 # -----------------------------
-w, h = 1000, 800
-x = np.linspace(-3, 3, w)
-y = np.linspace(-3, 3, h)
-X, Y = np.meshgrid(x, y)
-
-Z = (
-    np.sin(X) * np.cos(Y)
-    + 0.5 * np.sin(2 * X)
-    + 0.3 * np.cos(2 * Y)
-)
-Z = cv2.normalize(Z, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-
+depth = cv2.imread("MiDaS-master/output/sand_test-dpt_large_384.pfm", cv2.IMREAD_UNCHANGED)
+Z = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
+Z = Z.astype(np.uint8)
 # -----------------------------
 # SLOPE (cliffs)
 # -----------------------------
