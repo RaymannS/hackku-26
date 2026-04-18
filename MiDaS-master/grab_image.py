@@ -73,6 +73,7 @@ def capture_image_for_midas():
 
     # Capture a sharp sandbox crop using the shared helper
     frame = shared_capture_sandbox_frame()
+    frame = cv2.rotate(frame, cv2.ROTATE_180)
 
     # Use fixed filename for speed
     image_path = os.path.join(full_dir, "sand.jpg")  # JPG is faster than PNG

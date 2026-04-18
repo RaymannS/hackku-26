@@ -41,6 +41,9 @@ def get_player_location(Z):
             sh, sw = sandbox.shape[:2]
             player_x = int(avg_x / sw * w)
             player_y = int(avg_y / sh * h)
+            # Rotate the detected player location 180° CCW to match the saved image orientation.
+            player_x = w - 1 - player_x
+            player_y = h - 1 - player_y
             print(f"Detected {len(centers)} red targets; player location: ({player_x}, {player_y})")
             return player_x, player_y
         print("No red targets found; falling back to center")

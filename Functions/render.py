@@ -69,7 +69,8 @@ def draw_contour_lines(canvas, Z, interval=20, color=(70, 45, 30), thickness=1, 
     return canvas
 
 
-def apply_hillshade(canvas, Z, azimuth=315, altitude=45, strength=0.05):
+def apply_hillshade(canvas, Z, azimuth=0, altitude=90, strength=0.05):
+    """Apply hillshade using an overhead light source for a top-down map view."""
     az = np.deg2rad(azimuth)
     alt = np.deg2rad(altitude)
     gy, gx = np.gradient(Z.astype(np.float32))

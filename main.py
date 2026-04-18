@@ -9,7 +9,7 @@ import pickle
 import subprocess
 import sys
 
-VOICE_MODE = False  # Change to True for voice, False for typing
+VOICE_MODE = True  # Change to True for voice, False for typing
 
 from Functions.render import *
 from Functions.prompts import *
@@ -138,31 +138,55 @@ Z, water, land, mountain, water_mask, mountain_mask, snow_mask, cliffs, final = 
 # -----------------------------
 
 recognizer = sr.Recognizer()
+recognizer.pause_threshold = 0.5
 mic = sr.Microphone()
 
 if VOICE_MODE:
     print("Calibrating microphone...")
     with mic as source:
         recognizer.adjust_for_ambient_noise(source, duration=1)
-    print("Ready! Listening for commands...")
+    print("Ready! Waiting for wake word 'Dungeon Master'...")
 
-def listen_for_command():
+def listen_for_wake_word():
     with mic as source:
-        print("\nListening...")
-        try:
-            audio = recognizer.listen(source, timeout=12, phrase_time_limit=20)
-            command = recognizer.recognize_google(audio)
-            print(f"Heard: '{command}'")
-            return command
-        except sr.WaitTimeoutError:
-            print("No speech detected")
-            return None
-        except sr.UnknownValueError:
-            print("Could not understand audio")
-            return None
-        except sr.RequestError:
-            print("Speech service unavailable")
-            return None
+        while True:
+            print("\nWaiting for wake word: 'Dungeon Master'")
+            try:
+                audio = recognizer.listen(source, timeout=12, phrase_time_limit=15)
+                text = recognizer.recognize_google(audio)
+                print(f"Heard: '{text}'")
+                lowered = text.lower()
+                if "dungeon master" in lowered:
+                    parts = re.split(r"dungeon master", text, flags=re.IGNORECASE, maxsplit=1)
+                    if len(parts) > 1 and parts[1].strip():
+                        command = parts[1].strip()
+                        print(f"Wake word plus command detected: '{command}'")
+                        return command
+
+                    print("Wake word detected. Listening for command...")
+                    try:
+                        audio = recognizer.listen(source, timeout=10, phrase_time_limit=20)
+                        command = recognizer.recognize_google(audio)
+                        print(f"Heard command: '{command}'")
+                        return command
+                    except sr.WaitTimeoutError:
+                        print("No command heard after wake word; please say it again.")
+                        continue
+                    except sr.UnknownValueError:
+                        print("Could not understand the command; please try again.")
+                        continue
+
+                else:
+                    print("Wake word not detected. Say 'Dungeon Master' first.")
+            except sr.WaitTimeoutError:
+                print("No speech detected while waiting for wake word")
+                return None
+            except sr.UnknownValueError:
+                print("Could not understand audio while waiting for wake word")
+                return None
+            except sr.RequestError:
+                print("Speech service unavailable")
+                return None
 
 # -----------------------------
 # INTERACTIVE LOOP
@@ -172,6 +196,10 @@ path_layer = final.copy()
 named_locations = {}
 
 print(f"Mode: {'VOICE' if VOICE_MODE else 'TYPING'}")
+if VOICE_MODE:
+    print("Say 'Dungeon Master' followed by your command.")
+else:
+    print("Type your commands below.")
 print("Commands: add a forest/desert/town/village/city in [region] called [name]")
 print("          draw a path/road between [name] and [name]")
 print("          draw a bridge from x,y to x,y")
@@ -201,13 +229,15 @@ while True:
     shrunk = cv2.resize(current_map, (new_w, h))
     padded = np.zeros((h, w, 3), dtype=np.uint8)
     padded[:, MARGIN:MARGIN + new_w] = shrunk
-    current_map = padded
+    current_map = cv2.rotate(padded, cv2.ROTATE_180)
+    
+    
 
     cv2.imshow("D&D World Map", current_map)
     cv2.waitKey(1)
 
     if VOICE_MODE:
-        prompt = listen_for_command()
+        prompt = listen_for_wake_word()
     else:
         prompt = input("\nEnter command: ").strip()
 
@@ -276,6 +306,9 @@ while True:
         else:
             print("Failed to redraw map")
     elif prompt.lower().startswith("save state"):
+        if VOICE_MODE:
+            print("Save state is disabled in voice mode.")
+            continue
         parts = prompt.split()
         filename = "map_state.pkl"
         if len(parts) > 2:
@@ -294,6 +327,9 @@ while True:
             char_gen.active_characters = state.get("active_characters", [])
             print("Map state restored")
     elif prompt.lower().startswith("save "):
+        if VOICE_MODE:
+            print("Saving images is disabled in voice mode.")
+            continue
         filename = prompt[5:].strip() or "map.png"
         cv2.imwrite(filename, composite(final, path_layer, feature_layer))
         print(f"Saved map image to {filename}")

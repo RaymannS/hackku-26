@@ -108,7 +108,7 @@ class CharacterGenerator:
         overlay_image(canvas, "Images/orc.png", x, y, config.appearance.size * 2)
 
     def _draw_boss(self, canvas, x, y, config: CharacterConfig):
-        overlay_image(canvas, "Images/orc.png", x, y, config.appearance.size * 2)
+        overlay_image(canvas, "Images/boss.png", x, y, config.appearance.size * 2)
 
     def _draw_orc_features(self, canvas, x, y, size):
         """Draw orc-specific features like tusks."""

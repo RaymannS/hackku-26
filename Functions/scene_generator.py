@@ -235,8 +235,8 @@ class SceneGenerator:
             blurred = cv2.GaussianBlur(final, (5, 5), 0)
             final = cv2.addWeighted(final, 0.94, blurred, 0.06, 0)
 
-            # Add subtle hillshade to make relief feel more three-dimensional.
-            final = apply_hillshade(final, Z)
+            # Add subtle hillshade using overhead lighting for a top-down map view.
+            final = apply_hillshade(final, Z, azimuth=0, altitude=90, strength=0.04)
 
             # Parchment overlay: use a very light tone so the terrain stays bright.
             paper = np.full_like(final, [250, 240, 220])  # Lighter parchment tone
