@@ -178,6 +178,7 @@ print("          style on | style off | toggle style")
 print("          redraw map")
 print("          list | reset | save [filename] | quit")
 
+
 while True:
     # Draw active characters on the feature layer
     char_gen.draw_all_characters(feature_layer)
@@ -191,9 +192,9 @@ while True:
     shrunk = cv2.resize(current_map, (new_w, h))
     padded = np.zeros((h, w, 3), dtype=np.uint8)
     padded[:, MARGIN:MARGIN + new_w] = shrunk
+    current_map = padded
 
     cv2.imshow("D&D World Map", current_map)
-    cv2.imshow("D&D World Map", padded)
     cv2.waitKey(1)
 
     if VOICE_MODE:

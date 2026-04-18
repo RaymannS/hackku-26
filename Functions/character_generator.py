@@ -15,7 +15,7 @@ try:
 except ImportError:
     # For testing purposes
     def draw_orc(*args): pass
-    def draw_label(*args): pass
+    #def draw_label(*args): pass
 
 class CharacterType(Enum):
     ORC = "orc"
@@ -58,7 +58,7 @@ class CharacterGenerator:
             body_color=(30, 90, 30),
             head_color=(40, 110, 40),
             eye_color=(0, 0, 180),
-            size=50,
+            size=60,
             special_features=self._draw_orc_features
         )
         orc_stats = CharacterStats(
@@ -88,7 +88,7 @@ class CharacterGenerator:
         cv2.line(canvas, (x - 3, y - size + 3), (x - 5, y - size + 7), (200, 200, 200), 1)
         cv2.line(canvas, (x + 3, y - size + 3), (x + 5, y - size + 7), (200, 200, 200), 1)
 
-    def spawn_characters(self, canvas, player_x: int, player_y: int, char_type: CharacterType, n: int = 5, radius: int = 60) -> List[Dict]:
+    def spawn_characters(self, canvas, player_x: int, player_y: int, char_type: CharacterType, n: int = 3, radius: int = 60) -> List[Dict]:
         """Spawn characters of a specific type near the player."""
         if char_type not in self.character_configs:
             print(f"Character type {char_type} not configured.")

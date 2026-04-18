@@ -36,8 +36,11 @@ def draw_tree(canvas, x, y, size=80):
 def draw_cactus(canvas, x, y, size=80):
     overlay_image(canvas, "Images/cactus.png", x, y, size)
 
-def draw_house(canvas, x, y, size=80):
+def draw_house(canvas, x, y, size=90):
     overlay_image(canvas, "Images/house.png", x, y, size)
+    
+def draw_castle(canvas, x, y, size=150):
+    overlay_image(canvas, "Images/castle.png", x, y, size)
 
 def apply_desert_terrain(canvas, mask, Z):
     z_vals = Z[mask].astype(float)
@@ -126,6 +129,7 @@ def add_winding(path, strength=10):
 from PIL import ImageFont, ImageDraw, Image
 
 def draw_label(canvas, x, y, name, size=0.5):
+    print("LABEL")
     font = cv2.FONT_HERSHEY_SCRIPT_SIMPLEX
     thickness = 1
     (tw, th), baseline = cv2.getTextSize(name, font, size, thickness)
