@@ -129,8 +129,9 @@ def parse_and_apply(prompt, feature_canvas, path_canvas, Z, sea_level, mountain_
         char_gen.spawn_characters(feature_canvas, player_x, player_y, CharacterType.ORC, n=5, radius=60)
         
     if any(word in p for word in ["defeated", "kill", "slain", "clear"]):
-        char_gen.clear_characters()        
-        print("Orcs cleared")
+        print(f"Before clear: {len(char_gen.active_characters)} characters")
+        char_gen.clear_characters(CharacterType.ORC)
+        print(f"After clear: {len(char_gen.active_characters)} characters")
         
     
         
