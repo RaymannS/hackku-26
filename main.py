@@ -95,15 +95,6 @@ final[edges > 0] = [20, 20, 20]
 
 
 
-
-
-
-
-# -----------------------------
-# REGION + POINT PARSING
-# -----------------------------
-
-
 # -----------------------------
 # COMPOSITE
 # -----------------------------
@@ -114,9 +105,6 @@ def composite(base, path_layer, feature_layer):
     result[diff] = feature_layer[diff]
     return result
 
-# -----------------------------
-# PROMPT PARSER
-# -----------------------------
 
 
 # -----------------------------
