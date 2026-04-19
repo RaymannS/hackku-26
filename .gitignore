@@ -5,3 +5,5 @@ Functions/__pycache__*
 */*/*.pfm
 */*.pfm
 *.png
+contours_debug.png
+MiDaS-master/output/sand-dpt_large_384.pfm
