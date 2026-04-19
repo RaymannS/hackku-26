@@ -242,10 +242,10 @@ while True:
     h, w = current_map.shape[:2]
     new_w = w - MARGIN * 2
     print(f"Original map size: {w}x{h}, Shrunk map size: {new_w}x{h}")
-    # shrunk = cv2.resize(current_map, (new_w, h))
-    # padded = np.zeros((h, w, 3), dtype=np.uint8)
-    # padded[:, MARGIN:MARGIN + new_w] = shrunk
-    current_map = cv2.rotate(current_map, cv2.ROTATE_180)
+    shrunk = cv2.resize(current_map, (new_w, h))
+    padded = np.zeros((h, w, 3), dtype=np.uint8)
+    padded[:, MARGIN:MARGIN + new_w] = shrunk
+    current_map = cv2.rotate(padded, cv2.ROTATE_180)
     
     
 
