@@ -1,4 +1,7 @@
-Functions\__pycache__*
+Functions/__pycache__*
 *.py[cod]
 *$py.class
 *.pfm
+*/*/*.pfm
+*/*.pfm
+*.png
